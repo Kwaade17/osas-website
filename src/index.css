@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* Add this to your main global CSS file (e.g., index.css) */
+@layer base {
+  html {
+    /* Set a modern, thin width for the main vertical scrollbar */
+    &::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    /* Keep the background track completely clean and hidden */
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    /* A sleek, rounded emerald capsule thumb */
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(5, 150, 105, 0.3); /* emerald-600 with opacity */
+      border-radius: 9999px;
+      /* Add a transparent border to create a "floating" padding effect */
+      border: 2px solid transparent; 
+      background-clip: padding-box;
+    }
+
+    /* Deepens color smoothly when the user scrolls or hovers over it */
+    &::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(5, 150, 105, 0.6); /* emerald-600 gets darker */
+    }
+  }
+}
