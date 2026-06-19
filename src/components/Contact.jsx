@@ -6,7 +6,7 @@ const contactDetails = [
   {
     title: "Facebook Page",
     value: "OSAS La Carlota City College", // Replace with your actual Page name
-    link: "https://www.facebook.com/your-page-link-here", // Replace with your actual FB page URL
+    link: "https://www.facebook.com/lccc.osas", // Replace with your actual FB page URL
     // FontAwesome brands use "fab" prefix
     icon: ["fab", "facebook"], 
     bgColor: "bg-blue-50 text-blue-600", // Customize colors per card if you want
