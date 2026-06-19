@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Replace the URL below with your actual official live Vercel URL
+Sitemap: https://osas-website-theta.vercel.app/sitemap.xml
