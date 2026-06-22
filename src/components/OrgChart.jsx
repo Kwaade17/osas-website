@@ -296,9 +296,6 @@ export default function OrganizationChart() {
   return (
     <div id="organizational-structure" className="w-full my-12 flex flex-col items-center scroll-mt-24">
       <div className="mb-6 max-w-2xl text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-700 shadow-sm">
-          OSAS Office Map
-        </div>
         <h2 className="mt-4 text-3xl font-black text-slate-900 sm:text-4xl">
           Organizational Structure
         </h2>
