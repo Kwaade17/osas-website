@@ -36,7 +36,7 @@ export default function SlideFeature() {
   const activeDotIndex = currentIndex % baseServices.length
 
   return (
-    <div className="w-full flex flex-col items-center space-y-6 overflow-hidden">
+    <div id="services" className="w-full flex flex-col items-center space-y-6 overflow-hidden">
       
       {/* --- DESKTOP VIEW (sm:block hidden) --- */}
       <div className="hidden sm:block w-full overflow-hidden px-1 py-4">

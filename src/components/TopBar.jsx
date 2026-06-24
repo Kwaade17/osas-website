@@ -46,8 +46,8 @@ export default function TopBar() {
         {/* Desktop Navigation Menu (HashLink handles cross-page smooth jumps) */}
         <div className='hidden sm:flex items-center text-sm font-bold space-x-2'>
           <HashLink smooth className={getNavLinkClass('/', '')} to="/#">Home</HashLink>
-          <HashLink smooth className={getNavLinkClass('/', '#about')} to="/#about">About</HashLink>
           <HashLink smooth className={getNavLinkClass('/', '#services')} to="/#services">Services</HashLink>
+          <HashLink smooth className={getNavLinkClass('/', '#about')} to="/#about">About</HashLink>
           <HashLink smooth className={getNavLinkClass('/', '#contact')} to="/#contact">Contact</HashLink>
         </div>
 
@@ -65,8 +65,8 @@ export default function TopBar() {
       {isToggle && (
         <div className='absolute top-full left-0 w-full bg-white flex flex-col p-4 space-y-1 text-sm font-bold shadow-md border-t border-gray-100 sm:hidden animate-in fade-in slide-in-from-top-2 duration-200'>
           <HashLink smooth onClick={() => setIsToggle(false)} className={getNavLinkClass('/', '')} to="/#">Home</HashLink>
-          <HashLink smooth onClick={() => setIsToggle(false)} className={getNavLinkClass('/', '#about')} to="/#about">About</HashLink>
           <HashLink smooth onClick={() => setIsToggle(false)} className={getNavLinkClass('/', '#services')} to="/#services">Services</HashLink>
+          <HashLink smooth onClick={() => setIsToggle(false)} className={getNavLinkClass('/', '#about')} to="/#about">About</HashLink>
           <HashLink smooth onClick={() => setIsToggle(false)} className={getNavLinkClass('/', '#contact')} to="/#contact">Contact</HashLink>
         </div>
       )}
