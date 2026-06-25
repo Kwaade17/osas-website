@@ -1,19 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { useLocation } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom' // Imported standard Link
 import { HashLink } from 'react-router-hash-link'
 import OSAS from '/osas-logo.png'
 
 export default function TopBar() {
   const [isToggle, setIsToggle] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const location = useLocation()
 
-  // Custom active state checker for section hashes
+  // 1. DYNAMIC AUTH SYNC: Evaluates authentication whenever the page path shifts!
+  useEffect(() => {
+    const checkAuth = () => {
+      setIsAuthenticated(!!localStorage.getItem("osas_token"));
+    };
+    checkAuth();
+    
+    // Listens to native browser storage modifications
+    window.addEventListener("storage", checkAuth);
+    return () => window.removeEventListener("storage", checkAuth);
+  }, [location]);
+
   const checkActive = (path, hash = '') => {
     return location.pathname === path && location.hash === hash
   }
 
-  // Adapted helper class to process active section styling cleanly
   const getNavLinkClass = (path, hash = '') => {
     const isActive = checkActive(path, hash)
     return `px-3 py-1.5 rounded-md transition-colors duration-200 ease-in-out text-left block ${
@@ -22,11 +33,10 @@ export default function TopBar() {
   }
 
   return (
-    <nav className='relative w-full bg-white z-50'>
-      {/* Main Top Bar Wrapper */}
-      <div className='flex justify-between items-center shadow-xs px-4 py-3 md:px-8'>
+    <nav className='relative w-full bg-white z-50 border-b border-gray-100 shadow-xs'>
+      <div className='flex justify-between items-center px-4 py-3 md:px-8'>
         
-        {/* Left Side: Brand Logo and Title */}
+        {/* Brand Logo and Title */}
         <HashLink smooth to="/#" onClick={() => setIsToggle(false)} className='flex items-center space-x-3'>
           <img className='w-12 h-12 md:w-14 md:h-14 object-contain' src={OSAS} alt="OSAS Logo" />
         
@@ -43,12 +53,31 @@ export default function TopBar() {
           </div>
         </HashLink>
 
-        {/* Desktop Navigation Menu (HashLink handles cross-page smooth jumps) */}
+        {/* Desktop Navigation Menu */}
         <div className='hidden sm:flex items-center text-sm font-bold space-x-2'>
           <HashLink smooth className={getNavLinkClass('/', '')} to="/#">Home</HashLink>
           <HashLink smooth className={getNavLinkClass('/', '#services')} to="/#services">Services</HashLink>
           <HashLink smooth className={getNavLinkClass('/', '#about')} to="/#about">About</HashLink>
           <HashLink smooth className={getNavLinkClass('/', '#contact')} to="/#contact">Contact</HashLink>
+
+          {/* 2. DYNAMIC AUTH ACTION BUTTON (Desktop) */}
+          {isAuthenticated ? (
+            <Link 
+              to="/dashboard" 
+              className="ml-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+            >
+              <FontAwesomeIcon icon={["fas", "folder-open"]} className="w-3 h-3" />
+              <span>Dashboard</span>
+            </Link>
+          ) : (
+            <Link 
+              to="/login" 
+              className="ml-4 border border-emerald-600/30 hover:bg-emerald-50 text-emerald-800 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1.5"
+            >
+              <FontAwesomeIcon icon={["fas", "lock"]} className="w-3 h-3" />
+              <span>Staff Login</span>
+            </Link>
+          )}
         </div>
 
         {/* Mobile Toggle Button */}
@@ -63,11 +92,30 @@ export default function TopBar() {
 
       {/* Mobile Dropdown Menu Drawer */}
       {isToggle && (
-        <div className='absolute top-full left-0 w-full bg-white flex flex-col p-4 space-y-1 text-sm font-bold shadow-md border-t border-gray-100 sm:hidden animate-in fade-in slide-in-from-top-2 duration-200'>
+        <div className='absolute top-full left-0 w-full bg-white flex flex-col p-4 space-y-1 text-sm font-bold shadow-md border-t border-gray-100 sm:hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50'>
           <HashLink smooth onClick={() => setIsToggle(false)} className={getNavLinkClass('/', '')} to="/#">Home</HashLink>
           <HashLink smooth onClick={() => setIsToggle(false)} className={getNavLinkClass('/', '#services')} to="/#services">Services</HashLink>
           <HashLink smooth onClick={() => setIsToggle(false)} className={getNavLinkClass('/', '#about')} to="/#about">About</HashLink>
           <HashLink smooth onClick={() => setIsToggle(false)} className={getNavLinkClass('/', '#contact')} to="/#contact">Contact</HashLink>
+          
+          {/* 3. DYNAMIC AUTH ACTION BUTTON (Mobile Drawer) */}
+          {isAuthenticated ? (
+            <Link 
+              to="/dashboard" 
+              onClick={() => setIsToggle(false)} 
+              className="w-full text-center mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl block text-xs shadow-xs"
+            >
+              Go to Dashboard
+            </Link>
+          ) : (
+            <Link 
+              to="/login" 
+              onClick={() => setIsToggle(false)} 
+              className="w-full text-center mt-3 border border-emerald-600/30 hover:bg-emerald-50 text-emerald-800 font-bold py-2.5 rounded-xl block text-xs"
+            >
+              Staff Login Portal
+            </Link>
+          )}
         </div>
       )}
     </nav>
