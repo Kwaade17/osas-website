@@ -3,10 +3,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { aboutData } from "../assets/aboutData"
 
 export default function About() {
-  // Defensive guard in case data fails to load properly
   const content = aboutData || {
     title: "About OSAS",
-    shortDescription: "The Office of the Student Affairs and Services...",
+    shortDescription: "The Office of the Student Affairs and Services empowers student development through holistic support, guidlines, and clear character clearance paths.",
     buttonText: "Learn More About Our Office",
     linkTo: "/about-osas"
   }
