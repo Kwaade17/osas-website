@@ -3,11 +3,41 @@ import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { supabase } from "../../supabaseClient";
 
+// Helper to decode HTML entities & strip tags
+const getPlainText = (htmlContent) => {
+  if (!htmlContent) return "";
+  const spacedHtml = htmlContent
+    .replace(/<\/p>/g, " </p>")
+    .replace(/<\/h[1-6]>/g, " </h>")
+    .replace(/<br\s*\/?>/g, " <br/>");
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = spacedHtml;
+  return (tempDiv.textContent || tempDiv.innerText || "").replace(/\s+/g, " ").trim();
+};
+
+const getParagraphsList = (htmlContent) => {
+  if (!htmlContent) return [];
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = htmlContent;
+  const paragraphs = tempDiv.querySelectorAll("p, h1, h2, h3, li");
+  
+  if (paragraphs.length === 0) {
+    const cleanText = tempDiv.textContent || tempDiv.innerText || "";
+    return [cleanText.replace(/\s+/g, " ").trim()];
+  }
+
+  return Array.from(paragraphs)
+    .map(p => (p.textContent || p.innerText || "").replace(/&nbsp;/g, " ").trim())
+    .filter(Boolean);
+};
+
 export default function Announcement() {
   const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true); // <-- 1. NEW LOADING STATE
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
+      setLoading(true); // <-- Start Loader
       const { data, error } = await supabase
         .from("posts")
         .select("*")
@@ -17,6 +47,7 @@ export default function Announcement() {
       if (!error) {
         setAnnouncements(data);
       }
+      setLoading(false); // <-- End Loader
     };
     fetchAnnouncements();
   }, []);
@@ -29,23 +60,27 @@ export default function Announcement() {
       {/* Section Header */}
       <div className="mb-8 text-center sm:text-left">
         <h2 className="text-3xl font-black text-slate-800 tracking-tight">
-          {hasAnnouncements ? "Latest Announcements" : "Announcements"}
+          {hasAnnouncements || loading ? "Latest Announcements" : "Announcements"}
         </h2>
         <p className="text-sm text-slate-400 font-semibold mt-1">
           Stay up to date with official releases, clearances, and college notices.
         </p>
       </div>
 
-      {hasAnnouncements ? (
+      {/* --- 2. CONDITIONAL RENDERING OF LOADER --- */}
+      {loading ? (
+        <div className="w-full flex justify-center py-20">
+          <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : hasAnnouncements ? (
         <>
-          {/* --- SMART LAYOUT 1: SINGLE BANNER (Title & Cover Image only!) --- */}
+          {/* --- SMART LAYOUT 1: SINGLE BANNER --- */}
           {announcements.length === 1 && (
             <div className="flex justify-center w-full">
               <Link 
                 to={`/posts/${announcements[0].id}`}
                 className="flex flex-col md:flex-row bg-white border-l-4 border-l-emerald-600 border border-slate-200 shadow-md rounded-[28px] overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 max-w-3xl w-full text-left cursor-pointer group min-h-[220px]"
               >
-                {/* Cover Image Container */}
                 <div className="w-full md:w-1/2 h-52 md:h-auto overflow-hidden relative border-r border-slate-100 flex-shrink-0">
                   {announcements[0].cover_image ? (
                     <img 
@@ -54,7 +89,6 @@ export default function Announcement() {
                       className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500 ease-in-out" 
                     />
                   ) : (
-                    /* Fallback design */
                     <div className="w-full h-full bg-gradient-to-br from-emerald-900 to-slate-900 flex flex-col items-center justify-center text-center p-6 text-white space-y-1.5 relative select-none">
                       <FontAwesomeIcon icon={["fas", "images"]} className="w-6 h-6 text-emerald-400/50 mb-1" />
                       <span className="font-extrabold text-[10px] uppercase tracking-wider text-emerald-100">No Cover Image</span>
@@ -63,7 +97,6 @@ export default function Announcement() {
                   )}
                 </div>
 
-                {/* Text Container */}
                 <div className="p-6 flex flex-col justify-between flex-1 space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -89,16 +122,15 @@ export default function Announcement() {
             </div>
           )}
 
-          {/* --- SMART LAYOUT 2: RESPONSIVE GRID (If there are multiple announcements) --- */}
+          {/* --- SMART LAYOUT 2: RESPONSIVE GRID --- */}
           {announcements.length > 1 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {announcements.map((item, index) => (
                 <Link 
                   to={`/posts/${item.id}`}
                   key={item.id || index}
-                  className="flex flex-col bg-white border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] justify-between h-[300px] hover:shadow-[0_12px_40px_rgb(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden group text-left cursor-pointer rounded-3xl"
+                  className="flex flex-col bg-white border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 justify-between h-[300px] hover:shadow-[0_12px_40px_rgb(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden group text-left cursor-pointer rounded-3xl"
                 >
-                  {/* Cover Image Container */}
                   <div className="w-full h-36 overflow-hidden border-b border-slate-100 relative flex-shrink-0">
                     {item.cover_image ? (
                       <img src={item.cover_image} alt="" className="w-full h-full object-cover" />
@@ -110,7 +142,6 @@ export default function Announcement() {
                     )}
                   </div>
 
-                  {/* Content Area */}
                   <div className="p-5 flex-1 flex flex-col justify-between">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -139,6 +170,7 @@ export default function Announcement() {
           )}
         </>
       ) : (
+        /* --- FALLBACK (When empty) --- */
         <div className="flex flex-col bg-slate-100/80 rounded-2xl border border-slate-200/60 shadow-xs p-4 space-y-3 animate-in fade-in duration-300">
           <div className="flex flex-col items-center justify-center pt-2 space-y-1">
             <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

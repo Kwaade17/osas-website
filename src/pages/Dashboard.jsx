@@ -26,12 +26,26 @@ const formatBytes = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 };
 
+// Pre-defined slate of high-quality FontAwesome icons for services
+const iconOptions = [
+  { label: "File / Document", value: "fa-file" },
+  { label: "Speech Message", value: "fa-message" },
+  { label: "Medical Kit", value: "fa-kit-medical" },
+  { label: "Graduation Cap", value: "fa-user-graduate" },
+  { label: "School Book", value: "fa-book" },
+  { label: "Security Shield", value: "fa-shield-halved" },
+  { label: "Info Circle", value: "fa-circle-info" }
+];
+
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState("announcements"); // "announcements", "stories", or "storage"
+  const [activeTab, setActiveTab] = useState("announcements"); // "announcements", "stories", "services", or "storage"
   const [posts, setPosts] = useState([]);
   const [storageFiles, setStorageFiles] = useState([]);
   const [loadingStorage, setLoadingStorage] = useState(false);
   
+  // 1. NEW STATE: Loading state for database rows
+  const [loadingPosts, setLoadingPosts] = useState(true); 
+
   // Form States
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Announcement");
@@ -57,6 +71,7 @@ export default function Dashboard() {
 
   // SELECT: Fetch posts from Supabase PostgreSQL
   const fetchPosts = async () => {
+    setLoadingPosts(true); // <-- Start loading spinner
     const { data, error } = await supabase
       .from("posts")
       .select("*")
@@ -67,6 +82,7 @@ export default function Dashboard() {
     } else {
       setPosts(data);
     }
+    setLoadingPosts(false); // <-- End loading spinner
   };
 
   // STORAGE SELECT: Fetch and list files
@@ -104,6 +120,8 @@ export default function Dashboard() {
     setContent(post.content);
     setAuthor(post.author);
     setExistingCoverImage(post.cover_image || "");
+    setIcon(post.icon || "fa-file");
+    setDescription(post.description || "");
     setImageFile(null); 
     setIsEditing(true);  
   };
@@ -112,10 +130,15 @@ export default function Dashboard() {
   const handleCreateClick = () => {
     setEditingPostId(null);
     setTitle("");
-    setType(activeTab === "announcements" ? "Announcement" : "Story"); 
+    if (activeTab === "announcements") setType("Announcement");
+    else if (activeTab === "stories") setType("Story");
+    else if (activeTab === "services") setType("Service");
+    
     setContent("");
     setAuthor("");
     setExistingCoverImage("");
+    setIcon("fa-file");
+    setDescription("");
     setImageFile(null);
     setIsEditing(!isEditing);
   };
@@ -128,7 +151,7 @@ export default function Dashboard() {
 
     let coverImageUrl = existingCoverImage; 
 
-    if (imageFile) {
+    if (imageFile && type !== "Service") {
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `covers/${fileName}`;
@@ -158,8 +181,10 @@ export default function Dashboard() {
           title,
           type,
           content,
-          cover_image: coverImageUrl,
-          author: author || "OSAS Admin"
+          cover_image: type === "Service" ? null : coverImageUrl,
+          author: author || "OSAS Admin",
+          icon: type === "Service" ? icon : null,
+          description: type === "Service" ? description : null
         })
         .eq("id", editingPostId);
 
@@ -179,9 +204,11 @@ export default function Dashboard() {
             title,
             type,
             content,
-            cover_image: coverImageUrl,
+            cover_image: type === "Service" ? null : coverImageUrl,
             author: author || "OSAS Admin",
-            date: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+            date: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+            icon: type === "Service" ? icon : null,
+            description: type === "Service" ? description : null
           }
         ]);
 
@@ -192,6 +219,8 @@ export default function Dashboard() {
         setContent("");
         setImageFile(null);
         setAuthor("");
+        setIcon("fa-file");
+        setDescription("");
         setIsEditing(false); 
         fetchPosts();
       }
@@ -217,7 +246,6 @@ export default function Dashboard() {
     }
   };
 
-  // STORAGE DELETE: Deletes binary file from storage bucket
   const handleDeleteFile = async (fileName) => {
     if (window.confirm("Are you sure you want to permanently delete this image from your cloud storage? This cannot be undone.")) {
       const { error } = await supabase.storage
@@ -246,149 +274,77 @@ export default function Dashboard() {
 
   const announcementsList = posts.filter(p => p.type === "Announcement");
   const storiesList = posts.filter(p => p.type === "Story");
+  const servicesList = posts.filter(p => p.type === "Service"); 
 
   return (
-    // Changed to flex-col on mobile, and flex-row on desktop (md)
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row relative">
       
-      {/* --- 1. MOBILE TOP BAR HEADER (Only visible on screens < md) --- */}
+      {/* MOBILE TOP BAR */}
       <header className="md:hidden w-full bg-slate-900 text-slate-200 px-6 py-4 flex items-center justify-between shadow-md border-b border-slate-800 flex-shrink-0 z-30">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
-            OS
-          </div>
+          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">OS</div>
           <span className="font-extrabold text-white text-base">OSAS Admin</span>
         </div>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 text-slate-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-        >
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer">
           <FontAwesomeIcon icon={isMobileMenuOpen ? ["fas", "xmark"] : ["fas", "bars"]} className="w-5 h-5" />
         </button>
       </header>
 
-      {/* --- 2. MOBILE DRAWER SIDEBAR OVERLAY (Only visible on screens < md) --- */}
+      {/* MOBILE DRAWER SIDEBAR */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 md:hidden animate-in fade-in duration-200">
           <div className="w-64 h-full bg-slate-900 text-slate-200 p-6 flex flex-col justify-between shadow-2xl animate-in slide-in-from-left duration-300">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
-                    OS
-                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">OS</div>
                   <span className="font-extrabold text-white text-base">OSAS Admin</span>
                 </div>
-                <button 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 text-slate-400 hover:bg-slate-800 rounded-xl cursor-pointer"
-                >
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:bg-slate-800 rounded-xl cursor-pointer">
                   <FontAwesomeIcon icon={["fas", "xmark"]} className="w-5 h-5" />
                 </button>
               </div>
               <nav className="space-y-1">
-                <button 
-                  onClick={() => { setActiveTab("announcements"); setIsEditing(false); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
-                    activeTab === "announcements" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  <FontAwesomeIcon icon={["fas", "bullhorn"]} />
-                  <span>Announcements</span>
-                </button>
-                <button 
-                  onClick={() => { setActiveTab("stories"); setIsEditing(false); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
-                    activeTab === "stories" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  <FontAwesomeIcon icon={["fas", "book-open"]} />
-                  <span>Stories & Updates</span>
-                </button>
-                <button 
-                  onClick={() => { setActiveTab("storage"); setIsEditing(false); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
-                    activeTab === "storage" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  <FontAwesomeIcon icon={["fas", "images"]} />
-                  <span>Cloud Storage</span>
-                </button>
+                <button onClick={() => { setActiveTab("announcements"); setIsEditing(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left ${activeTab === "announcements" ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400"}`}><FontAwesomeIcon icon={["fas", "bullhorn"]} /><span>Announcements</span></button>
+                <button onClick={() => { setActiveTab("stories"); setIsEditing(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left ${activeTab === "stories" ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400"}`}><FontAwesomeIcon icon={["fas", "book-open"]} /><span>Stories & Updates</span></button>
+                <button onClick={() => { setActiveTab("services"); setIsEditing(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left ${activeTab === "services" ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400"}`}><FontAwesomeIcon icon={["fas", "kit-medical"]} /><span>Services Offer</span></button>
+                <button onClick={() => { setActiveTab("storage"); setIsEditing(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left ${activeTab === "storage" ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400"}`}><FontAwesomeIcon icon={["fas", "images"]} /><span>Cloud Storage</span></button>
               </nav>
             </div>
-            <button 
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-red-500/10 hover:text-red-400 text-slate-400 font-bold text-sm text-left transition-colors cursor-pointer"
-            >
-              <FontAwesomeIcon icon={["fas", "right-from-bracket"]} />
-              <span>Sign Out</span>
-            </button>
+            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-red-500/10 hover:text-red-400 text-slate-400 font-bold text-sm text-left"><FontAwesomeIcon icon={["fas", "right-from-bracket"]} /><span>Sign Out</span></button>
           </div>
         </div>
       )}
 
-      {/* --- 3. DESKTOP SIDEBAR NAVIGATION (Hidden on mobile) --- */}
+      {/* DESKTOP SIDEBAR */}
       <aside className="w-64 bg-slate-900 text-slate-200 p-6 flex flex-col justify-between hidden md:flex flex-shrink-0">
         <div className="space-y-6">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
-              OS
-            </div>
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">OS</div>
             <span className="font-extrabold text-white text-base">OSAS Admin</span>
           </div>
           <nav className="space-y-1">
-            <button 
-              onClick={() => { setActiveTab("announcements"); setIsEditing(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
-                activeTab === "announcements" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
-              }`}
-            >
-              <FontAwesomeIcon icon={["fas", "bullhorn"]} />
-              <span>Announcements</span>
-            </button>
-            <button 
-              onClick={() => { setActiveTab("stories"); setIsEditing(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
-                activeTab === "stories" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
-              }`}
-            >
-              <FontAwesomeIcon icon={["fas", "book-open"]} />
-              <span>Stories & Updates</span>
-            </button>
-            <button 
-              onClick={() => { setActiveTab("storage"); setIsEditing(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
-                activeTab === "storage" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
-              }`}
-            >
-              <FontAwesomeIcon icon={["fas", "images"]} />
-              <span>Cloud Storage</span>
-            </button>
+            <button onClick={() => { setActiveTab("announcements"); setIsEditing(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${activeTab === "announcements" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"}`}><FontAwesomeIcon icon={["fas", "bullhorn"]} /><span>Announcements</span></button>
+            <button onClick={() => { setActiveTab("stories"); setIsEditing(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${activeTab === "stories" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"}`}><FontAwesomeIcon icon={["fas", "book-open"]} /><span>Stories & Updates</span></button>
+            <button onClick={() => { setActiveTab("services"); setIsEditing(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${activeTab === "services" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"}`}><FontAwesomeIcon icon={["fas", "kit-medical"]} /><span>Services Offer</span></button>
+            <button onClick={() => { setActiveTab("storage"); setIsEditing(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${activeTab === "storage" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"}`}><FontAwesomeIcon icon={["fas", "images"]} /><span>Cloud Storage</span></button>
           </nav>
         </div>
-        <button 
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-red-500/10 hover:text-red-400 text-slate-400 font-bold text-sm text-left transition-colors cursor-pointer"
-        >
-          <FontAwesomeIcon icon={["fas", "right-from-bracket"]} />
-          <span>Sign Out</span>
-        </button>
+        <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-red-500/10 hover:text-red-400 text-slate-400 font-bold text-sm text-left transition-colors"><FontAwesomeIcon icon={["fas", "right-from-bracket"]} /><span>Sign Out</span></button>
       </aside>
 
-      {/* --- 4. MAIN CONTENT AREA (Scrollable) --- */}
+      {/* Main Content Area */}
       <main className="flex-1 p-6 md:p-10 max-h-screen overflow-y-auto">
         
-        {/* VIEW 1 & 2: POSTS MANAGER (Shared Form, Separated Lists) */}
         {activeTab !== "storage" && (
           <>
-            {/* Header: Made flex-col on mobile, flex-row on desktop */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-slate-200">
               <div>
                 <h1 className="text-2xl font-black text-slate-800 uppercase tracking-wide">
-                  {activeTab === "announcements" ? "Announcements Manager" : "Stories Manager"}
+                  {activeTab === "announcements" ? "Announcements Manager" : activeTab === "stories" ? "Stories Manager" : "Services Manager"}
                 </h1>
                 <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                  {activeTab === "announcements" ? "Manage School Announcements & Bulletins" : "Manage Campus Logs, Diaries, & Featured Articles"}
+                  {activeTab === "announcements" ? "Manage School Announcements" : activeTab === "stories" ? "Manage Campus Logs" : "Manage Interactive Service Cards"}
                 </p>
               </div>
               <button
@@ -396,15 +352,14 @@ export default function Dashboard() {
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto"
               >
                 <FontAwesomeIcon icon={isEditing ? ["fas", "xmark"] : ["fas", "plus"]} />
-                <span>{isEditing ? "Cancel" : "Create New Post"}</span>
+                <span>{isEditing ? "Cancel" : "Create New"}</span>
               </button>
             </div>
 
             {isEditing ? (
-              /* CREATE / EDIT FORM CONTAINER */
               <form onSubmit={handleSavePost} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5 max-w-4xl mx-auto">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Title</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase">Title / Service Name</label>
                   <input 
                     type="text" required value={title} onChange={e => setTitle(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
@@ -414,7 +369,7 @@ export default function Dashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Author</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">Author / Section</label>
                     <input 
                       type="text" value={author} onChange={e => setAuthor(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
@@ -422,160 +377,174 @@ export default function Dashboard() {
                     />
                   </div>
                   
-                  {/* REUSABLE COVER IMAGE SELECTOR */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Cover Image</label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input 
-                        type="file" accept="image/*" onChange={handleImageChange}
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setIsGalleryOpen(true)}
-                        className="px-4 py-2 rounded-xl border border-emerald-600/30 text-emerald-800 hover:bg-emerald-50 font-bold text-xs flex-shrink-0 cursor-pointer transition-colors"
-                      >
-                        Browse Storage
-                      </button>
-                    </div>
-
-                    {/* LIVE THUMBNAIL PREVIEW */}
-                    {(imageFile || existingCoverImage) && (
-                      <div className="flex items-center gap-2.5 mt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/50">
-                        <img 
-                          src={imageFile ? URL.createObjectURL(imageFile) : existingCoverImage} 
-                          alt="" 
-                          className="w-12 h-12 rounded-lg object-cover bg-slate-200" 
+                  {type !== "Service" && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Cover Image</label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input 
+                          type="file" accept="image/*" onChange={handleImageChange}
+                          className="w-full px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                         />
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-700 truncate">
-                            {imageFile ? imageFile.name : "Stored Cover Photo"}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                            {imageFile ? formatBytes(imageFile.size) : "Cloud URL Loaded"}
-                          </p>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsGalleryOpen(true)}
+                          className="px-4 py-2 rounded-xl border border-emerald-600/30 text-emerald-800 hover:bg-emerald-50 font-bold text-xs flex-shrink-0 cursor-pointer"
+                        >
+                          Browse Storage
+                        </button>
                       </div>
-                    )}
-                  </div>
+                      {(imageFile || existingCoverImage) && (
+                        <div className="flex items-center gap-2.5 mt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/50">
+                          <img src={imageFile ? URL.createObjectURL(imageFile) : existingCoverImage} alt="" className="w-12 h-12 rounded-lg object-cover bg-slate-200" />
+                          <div className="min-w-0 pr-8 relative flex-1">
+                            <p className="text-xs font-bold text-slate-700 truncate">{imageFile ? imageFile.name : "Stored Cover Photo"}</p>
+                            <button onClick={() => { setImageFile(null); setExistingCoverImage(""); }} className="absolute right-0 top-1/2 -translate-y-1/2 text-red-500 p-2 cursor-pointer"><FontAwesomeIcon icon={["fas", "trash"]} className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {type === "Service" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 col-span-2 animate-in fade-in duration-300">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Select Card Icon</label>
+                        <select 
+                          value={icon} onChange={e => setIcon(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700 bg-white"
+                        >
+                          {iconOptions.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Short Card Description</label>
+                        <input 
+                          type="text" required value={description} onChange={e => setDescription(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
+                          placeholder="Short summary shown on the home page card"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Article Content</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase">Detailed Service Content (Quill Editor)</label>
                   <div className="rounded-xl border border-slate-200 bg-white">
-                    <ReactQuill 
-                      theme="snow"
-                      value={content}
-                      onChange={setContent}
-                      modules={quillModules}
-                    />
+                    <ReactQuill theme="snow" value={content} onChange={setContent} modules={quillModules} />
                   </div>
                 </div>
 
                 <div className="pt-12 text-right">
                   <button 
-                    type="submit"
-                    disabled={loading}
+                    type="submit" disabled={loading}
                     className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-8 py-3 rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    {loading ? "Syncing Cloud..." : editingPostId ? "Update Article" : "Publish Article"}
+                    {loading ? "Saving to Cloud..." : editingPostId ? "Update Item" : "Publish Item"}
                   </button>
                 </div>
               </form>
             ) : (
-              /* --- RESPONSIVE CATEGORIZED LISTS --- */
-              <div className="grid grid-cols-1 gap-4 max-w-5xl mx-auto">
-                {/* 1. ANNOUNCEMENTS LIST */}
-                {activeTab === "announcements" && (
-                  announcementsList.length === 0 ? (
-                    <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
-                      <FontAwesomeIcon icon={["fas", "bullhorn"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
-                      <h3 className="font-bold text-slate-700 text-sm">No announcements published yet</h3>
-                      <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish an announcement.</p>
-                    </div>
-                  ) : (
-                    announcementsList.map((post) => (
-                      <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
-                        <div className="flex items-center gap-4 text-left">
-                          {post.cover_image ? (
-                            <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" />
-                          ) : (
-                            <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>
-                          )}
-                          <div className="min-w-0">
-                            <h4 className="font-bold text-slate-800 text-sm leading-snug truncate sm:whitespace-normal" title={post.title}>
-                              {post.title}
-                            </h4>
-                            <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date} | By: {post.author}</p>
+              /* --- DYNAMIC LOADING PLACEHOLDER FOR LISTS --- */
+              loadingPosts ? (
+                <div className="flex justify-center items-center py-32">
+                  <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (
+                /* LIST MANAGER */
+                <div className="grid grid-cols-1 gap-4 max-w-5xl mx-auto animate-in fade-in duration-300">
+                  {/* Announcements List */}
+                  {activeTab === "announcements" && (
+                    announcementsList.length === 0 ? (
+                      <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
+                        <FontAwesomeIcon icon={["fas", "bullhorn"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
+                        <h3 className="font-bold text-slate-700 text-sm">No announcements published yet</h3>
+                        <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish an announcement.</p>
+                      </div>
+                    ) : (
+                      announcementsList.map((post) => (
+                        <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                          <div className="flex items-center gap-4 text-left">
+                            {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-xs font-bold uppercase flex-shrink-0">No Img</div>}
+                            <div className="min-w-0">
+                              <span className="text-[9px] uppercase tracking-wider bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Announcement</span>
+                              <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
+                              <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                            <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
+                            <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
                           </div>
                         </div>
-                        {/* Tablet/Desktop Text links turn into beautiful, easy-to-tap pill buttons on mobile! */}
-                        <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
-                          <button 
-                            onClick={() => handleEditClick(post)}
-                            className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer transition-colors"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => handleDeletePost(post.id)}
-                            className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer transition-colors"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )
-                )}
+                      ))
+                    )
+                  )}
 
-                {/* 2. STORIES LIST */}
-                {activeTab === "stories" && (
-                  storiesList.length === 0 ? (
-                    <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
-                      <FontAwesomeIcon icon={["fas", "book-open"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
-                      <h3 className="font-bold text-slate-700 text-sm">No campus stories published yet</h3>
-                      <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish a story.</p>
-                    </div>
-                  ) : (
-                    storiesList.map((post) => (
-                      <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
-                        <div className="flex items-center gap-4 text-left">
-                          {post.cover_image ? (
-                            <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" />
-                          ) : (
-                            <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>
-                          )}
-                          <div className="min-w-0">
-                            <h4 className="font-bold text-slate-800 text-sm leading-snug truncate sm:whitespace-normal" title={post.title}>
-                              {post.title}
-                            </h4>
-                            <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date} | By: {post.author}</p>
+                  {/* Stories List */}
+                  {activeTab === "stories" && (
+                    storiesList.length === 0 ? (
+                      <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
+                        <FontAwesomeIcon icon={["fas", "book-open"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
+                        <h3 className="font-bold text-slate-700 text-sm">No campus stories published yet</h3>
+                        <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish a story.</p>
+                      </div>
+                    ) : (
+                      storiesList.map((post) => (
+                        <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                          <div className="flex items-center gap-4 text-left">
+                            {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>}
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
+                              <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                            <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
+                            <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
                           </div>
                         </div>
-                        <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
-                          <button 
-                            onClick={() => handleEditClick(post)}
-                            className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 cursor-pointer"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => handleDeletePost(post.id)}
-                            className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-3 py-1 cursor-pointer"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                      ))
+                    )
+                  )}
+
+                  {/* Services List */}
+                  {activeTab === "services" && (
+                    servicesList.length === 0 ? (
+                      <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
+                        <FontAwesomeIcon icon={["fas", "kit-medical"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
+                        <h3 className="font-bold text-slate-700 text-sm">No services published yet</h3>
+                        <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish a service.</p>
                       </div>
-                    ))
-                  )
-                )}
-              </div>
+                    ) : (
+                      servicesList.map((post) => (
+                        <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                          <div className="flex items-center gap-4 text-left">
+                            <div className="w-16 h-16 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-lg flex-shrink-0 border border-emerald-100">
+                              <FontAwesomeIcon icon={["fas", (post.icon || "file").replace("fa-", "")]} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[9px] uppercase tracking-wider bg-blue-50 text-blue-800 font-bold px-2 py-0.5 rounded-full">Service</span>
+                              <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
+                              <p className="text-[10px] text-slate-400 font-semibold mt-1">Summary: {post.description}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                            <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
+                            <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
+                          </div>
+                        </div>
+                      ))
+                    )
+                  )}
+                </div>
+              )
             )}
           </>
         )}
-
+        
         {/* --- VIEW 3: CLOUD STORAGE MANAGER --- */}
         {activeTab === "storage" && (
           <>
