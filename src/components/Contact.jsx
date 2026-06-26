@@ -22,7 +22,7 @@ const contactDetails = [
     title: "Office Hours",
     value: "Mon - Fri: 8:00 AM - 5:00 PM",
     link: null, // No link for hours
-    icon: ["fas", "clock"],
+    icon: ["fas", "hourglass-half"],
     bgColor: "bg-emerald-50 text-emerald-600",
   }
 ]
