@@ -17,15 +17,6 @@ const quillModules = {
   ],
 };
 
-// Helper to format file sizes nicely
-const formatBytes = (bytes) => {
-  if (!bytes || bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-};
-
 // Pre-defined slate of high-quality FontAwesome icons for services
 const iconOptions = [
   { label: "File / Document", value: "fa-file" },
@@ -37,14 +28,21 @@ const iconOptions = [
   { label: "Info Circle", value: "fa-circle-info" }
 ];
 
+// Helper to format file sizes nicely
+const formatBytes = (bytes) => {
+  if (!bytes || bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("announcements"); // "announcements", "stories", "services", or "storage"
   const [posts, setPosts] = useState([]);
   const [storageFiles, setStorageFiles] = useState([]);
   const [loadingStorage, setLoadingStorage] = useState(false);
-  
-  // 1. NEW STATE: Loading state for database rows
-  const [loadingPosts, setLoadingPosts] = useState(true); 
+  const [loadingPosts, setLoadingPosts] = useState(true);
 
   // Form States
   const [title, setTitle] = useState("");
@@ -53,6 +51,10 @@ export default function Dashboard() {
   const [content, setContent] = useState("");
   const [author, setAuthor] = useState("");
   const [isEditing, setIsEditing] = useState(false); // Controls form visibility
+  
+  // 💡 FIXED: Added the missing icon & description state hooks here!
+  const [icon, setIcon] = useState("fa-file");
+  const [description, setDescription] = useState("");
   
   // EDIT & REUSE STATES:
   const [editingPostId, setEditingPostId] = useState(null); 
@@ -71,7 +73,7 @@ export default function Dashboard() {
 
   // SELECT: Fetch posts from Supabase PostgreSQL
   const fetchPosts = async () => {
-    setLoadingPosts(true); // <-- Start loading spinner
+    setLoadingPosts(true);
     const { data, error } = await supabase
       .from("posts")
       .select("*")
@@ -82,7 +84,7 @@ export default function Dashboard() {
     } else {
       setPosts(data);
     }
-    setLoadingPosts(false); // <-- End loading spinner
+    setLoadingPosts(false);
   };
 
   // STORAGE SELECT: Fetch and list files
@@ -120,8 +122,8 @@ export default function Dashboard() {
     setContent(post.content);
     setAuthor(post.author);
     setExistingCoverImage(post.cover_image || "");
-    setIcon(post.icon || "fa-file");
-    setDescription(post.description || "");
+    setIcon(post.icon || "fa-file"); // Map existing icon
+    setDescription(post.description || ""); // Map existing description
     setImageFile(null); 
     setIsEditing(true);  
   };
@@ -137,8 +139,8 @@ export default function Dashboard() {
     setContent("");
     setAuthor("");
     setExistingCoverImage("");
-    setIcon("fa-file");
-    setDescription("");
+    setIcon("fa-file"); // Reset default icon
+    setDescription(""); // Reset default description
     setImageFile(null);
     setIsEditing(!isEditing);
   };
@@ -174,7 +176,7 @@ export default function Dashboard() {
     }
 
     if (editingPostId) {
-      // --- UPDATE EXISTING POST ---
+      // --- UPDATE EXISTING ---
       const { error: updateError } = await supabase
         .from("posts")
         .update({
@@ -196,7 +198,7 @@ export default function Dashboard() {
         fetchPosts(); 
       }
     } else {
-      // --- INSERT NEW POST ---
+      // --- INSERT NEW ---
       const { error: insertError } = await supabase
         .from("posts")
         .insert([
@@ -338,6 +340,7 @@ export default function Dashboard() {
         
         {activeTab !== "storage" && (
           <>
+            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-slate-200">
               <div>
                 <h1 className="text-2xl font-black text-slate-800 uppercase tracking-wide">
@@ -447,7 +450,7 @@ export default function Dashboard() {
                 </div>
               </form>
             ) : (
-              /* --- DYNAMIC LOADING PLACEHOLDER FOR LISTS --- */
+              /* DYNAMIC LOADING PLACEHOLDER FOR LISTS */
               loadingPosts ? (
                 <div className="flex justify-center items-center py-32">
                   <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
