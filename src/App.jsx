@@ -8,10 +8,10 @@ import PostReader from "./pages/PostReader";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // IMPORT YOUR HEADER & FOOTER
-import TopBar from "./components/TopBar"; // Double check this path!
-import Footer from "./components/Footer";           // Double check this path!
+import TopBar from "./components/TopBar"; 
+import Footer from "./components/Footer";           
 
-// 1. THE PUBLIC LAYOUT WRAPPER (Includes TopBar & Footer with Sticky Spacing)
+// THE PUBLIC LAYOUT WRAPPER
 const PublicLayout = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col justify-between bg-slate-50/20">
@@ -22,27 +22,64 @@ const PublicLayout = ({ children }) => {
   );
 };
 
-// Import FontAwesome library icons globally
+// --- OPTIMIZED FONTAWESOME IMPORTS ---
+// We import only the 16 specific icons your project actually uses!
 import { library } from "@fortawesome/fontawesome-svg-core";
-import { fas } from "@fortawesome/free-solid-svg-icons";
-import { fab } from "@fortawesome/free-brands-svg-icons";
-library.add(fas, fab);
+import { 
+  faChevronLeft, 
+  faShieldHalved, 
+  faTriangleExclamation, 
+  faFolderOpen, 
+  faRightFromBracket, 
+  faXmark, 
+  faPlus, 
+  faTrash, 
+  faBullhorn, 
+  faBookOpen, 
+  faImages, 
+  faRotate, 
+  faBars, 
+  faLock, 
+  faHourglassHalf, 
+  faArrowRight,
+  faFile,
+  faMessage,
+  faKitMedical,
+  faUserGraduate
+} from "@fortawesome/free-solid-svg-icons";
+import { faFacebook } from "@fortawesome/free-brands-svg-icons";
+
+// Register only these 20 icons in the global library cache
+library.add(
+  faChevronLeft, 
+  faShieldHalved, 
+  faTriangleExclamation, 
+  faFolderOpen, 
+  faRightFromBracket, 
+  faXmark, 
+  faPlus, 
+  faTrash, 
+  faBullhorn, 
+  faBookOpen, 
+  faImages, 
+  faRotate, 
+  faBars, 
+  faLock, 
+  faHourglassHalf, 
+  faArrowRight,
+  faFile,
+  faMessage,
+  faKitMedical,
+  faUserGraduate,
+  faFacebook
+);
 
 export default function App() {
   return (
     <Routes>
-      {/* 
-        2. PUBLIC ROUTES: 
-        We wrap all user-facing views inside our PublicLayout so they get headers/footers automatically! 
-      */}
       <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
       <Route path="/about-osas" element={<PublicLayout><AboutViewer /></PublicLayout>} />
       <Route path="/posts/:id" element={<PublicLayout><PostReader /></PublicLayout>} />
-
-      {/* 
-        3. PRIVATE ADMIN ROUTES: 
-        These are completely standalone and have their own custom panel layouts! 
-      */}
       <Route path="/login" element={<Login />} />
       <Route 
         path="/dashboard" 

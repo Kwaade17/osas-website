@@ -76,11 +76,20 @@
   margin-bottom: 0.25rem;
 }
 
+/* --- PREVIEW IMAGE ALIGNMENT CORRECTIONS --- */
 .rich-text-viewer img {
   border-radius: 1rem;
   max-width: 100%;
   height: auto;
-  margin: 1.5rem auto;
+  
+  /* 
+    💡 FIXED: 
+    1. Force inline-block so it obeys parent text-align classes natively.
+    2. Removed "auto" horizontal margins so it doesn't force-center! 
+  */
+  display: inline-block !important; 
+  margin: 1.5rem 0 !important; 
+  
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
 }
 
@@ -124,6 +133,14 @@
   color: #334155; /* slate-700 */
 }
 
+/* 💡 FIXED: Force images INSIDE the editor to be inline-block as well,
+   allowing them to obey your editor toolbar's alignment buttons! */
+.ql-editor img {
+  display: inline-block !important;
+  margin: 1rem 0 !important;
+  border-radius: 0.75rem;
+}
+
 /* 4. TAILWIND V4 DEFEATER: Forces the hidden/shrunk buttons to render! */
 .ql-toolbar.ql-snow button {
   display: inline-flex !important;
@@ -163,4 +180,24 @@
 .ql-container.ql-snow.ql-focus,
 .ql-toolbar.ql-snow:focus {
   border-color: #059669 !important; /* Soft emerald focus borders */
+}
+
+/* --- QUILL CONTENT ALIGNMENT RULES (For PostReader) --- */
+.rich-text-viewer .ql-align-center {
+  text-align: center;
+}
+.rich-text-viewer .ql-align-right {
+  text-align: right;
+}
+.rich-text-viewer .ql-align-justify {
+  text-align: justify;
+}
+
+/* Ensure aligned images inside the viewer obey parent paragraph centers/alignments */
+.rich-text-viewer .ql-align-center img {
+  display: inline-block !important;
+}
+
+.rich-text-viewer .ql-align-right img {
+  display: inline-block !important;
 }

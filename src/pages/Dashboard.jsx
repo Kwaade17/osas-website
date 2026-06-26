@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import ReactQuill from "react-quill-new";
-import "react-quill-new/dist/quill.snow.css"; 
+import ReactQuill, { Quill } from "react-quill-new"; // <-- Added { Quill }
+import ImageResize from "@mgreminger/quill-image-resize-module"; // <-- Added ImageResize module
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { supabase } from "../supabaseClient";
+
+Quill.register("modules/imageResize", ImageResize);
 
 // Setup Word-like toolbar tools
 const quillModules = {
@@ -15,6 +17,9 @@ const quillModules = {
     ['link', 'image'],                                
     ['clean']                                         
   ],
+  imageResize: {
+    modules: [ 'Resize', 'DisplaySize' ] 
+  }
 };
 
 // Pre-defined slate of high-quality FontAwesome icons for services
