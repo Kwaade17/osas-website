@@ -45,7 +45,8 @@ import {
   faFile,
   faMessage,
   faKitMedical,
-  faUserGraduate
+  faUserGraduate,
+  faBuilding
 } from "@fortawesome/free-solid-svg-icons";
 import { faFacebook } from "@fortawesome/free-brands-svg-icons";
 
@@ -71,6 +72,7 @@ library.add(
   faMessage,
   faKitMedical,
   faUserGraduate,
+  faBuilding,
   faFacebook
 );
 
