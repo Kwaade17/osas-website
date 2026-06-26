@@ -1,8 +1,8 @@
 import React from "react";
-import HeroOne from "../components/Sections/HeroOne";
-import Announcement from "../components/Sections/Announcement";
-import SlideFeature from "../components/Sections/SlideFeature";
-import Stories from "../components/Sections/Stories";
+import HeroOne from "../components/sections/HeroOne";
+import Announcement from "../components/sections/Announcement";
+import SlideFeature from "../components/sections/SlideFeature";
+import Stories from "../components/sections/Stories";
 import About from "../components/About";
 import Contact from "../components/Contact";
 
