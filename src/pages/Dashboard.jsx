@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css"; 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { supabase } from "../supabaseClient";
 
+// Setup Word-like toolbar tools
 const quillModules = {
   toolbar: [
     [{ 'header': [1, 2, 3, false] }],
@@ -15,23 +17,45 @@ const quillModules = {
   ],
 };
 
+// Helper to format file sizes nicely
+const formatBytes = (bytes) => {
+  if (!bytes || bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
 export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState("announcements"); // "announcements", "stories", or "storage"
   const [posts, setPosts] = useState([]);
+  const [storageFiles, setStorageFiles] = useState([]);
+  const [loadingStorage, setLoadingStorage] = useState(false);
+  
+  // Form States
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Announcement");
-  const [imageFile, setImageFile] = useState(null); // Stores raw image file
+  const [imageFile, setImageFile] = useState(null); 
   const [content, setContent] = useState("");
   const [author, setAuthor] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // Controls form visibility
+  
+  // EDIT & REUSE STATES:
+  const [editingPostId, setEditingPostId] = useState(null); 
+  const [existingCoverImage, setExistingCoverImage] = useState(""); 
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false); // Controls the Cloud Gallery modal
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Controls mobile sidebar drawer
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
 
+  // Load database rows & pre-fetch storage files on mount
   useEffect(() => {
     fetchPosts();
+    fetchStorageFiles();
   }, []);
 
-  // 1. SELECT: Fetch posts from Supabase PostgreSQL
+  // SELECT: Fetch posts from Supabase PostgreSQL
   const fetchPosts = async () => {
     const { data, error } = await supabase
       .from("posts")
@@ -45,22 +69,65 @@ export default function Dashboard() {
     }
   };
 
+  // STORAGE SELECT: Fetch and list files
+  const fetchStorageFiles = async () => {
+    setLoadingStorage(true);
+    const { data, error } = await supabase.storage
+      .from("osas-assets")
+      .list("covers", {
+        limit: 100,
+        sortBy: { column: "created_at", order: "desc" }
+      });
+
+    if (error) {
+      alert("Error loading storage: " + error.message);
+    } else {
+      const files = data.filter(file => file.name !== ".emptyFolderPlaceholder");
+      setStorageFiles(files);
+    }
+    setLoadingStorage(false);
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImageFile(file); // Store raw file object
+      setImageFile(file); 
+      setExistingCoverImage(""); 
     }
   };
 
-  // 2. INSERT: Uploads file to bucket, retrieves URL, then inserts row
+  // TRIGGER EDIT: Pre-populates the editor with the post's existing values
+  const handleEditClick = (post) => {
+    setEditingPostId(post.id);
+    setTitle(post.title);
+    setType(post.type);
+    setContent(post.content);
+    setAuthor(post.author);
+    setExistingCoverImage(post.cover_image || "");
+    setImageFile(null); 
+    setIsEditing(true);  
+  };
+
+  // Handles clicking the main CTA button to reset states for a fresh create form
+  const handleCreateClick = () => {
+    setEditingPostId(null);
+    setTitle("");
+    setType(activeTab === "announcements" ? "Announcement" : "Story"); 
+    setContent("");
+    setAuthor("");
+    setExistingCoverImage("");
+    setImageFile(null);
+    setIsEditing(!isEditing);
+  };
+
+  // INSERT / UPDATE: Dynamically handles creating or modifying rows
   const handleSavePost = async (e) => {
     e.preventDefault();
     if (!title || !content) return;
     setLoading(true);
 
-    let coverImageUrl = "";
+    let coverImageUrl = existingCoverImage; 
 
-    // Upload cover image file to Supabase storage if selected
     if (imageFile) {
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
@@ -76,7 +143,6 @@ export default function Dashboard() {
         return;
       }
 
-      // Retrieve public URL from bucket
       const { data: { publicUrl } } = supabase.storage
         .from("osas-assets")
         .getPublicUrl(filePath);
@@ -84,35 +150,60 @@ export default function Dashboard() {
       coverImageUrl = publicUrl;
     }
 
-    const { error: insertError } = await supabase
-      .from("posts")
-      .insert([
-        {
+    if (editingPostId) {
+      // --- UPDATE EXISTING POST ---
+      const { error: updateError } = await supabase
+        .from("posts")
+        .update({
           title,
           type,
           content,
-          cover_image: coverImageUrl, // Stores actual URL
-          author: author || "OSAS Admin",
-          date: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-        }
-      ]);
+          cover_image: coverImageUrl,
+          author: author || "OSAS Admin"
+        })
+        .eq("id", editingPostId);
 
-    if (insertError) {
-      alert("Failed to publish: " + insertError.message);
+      if (updateError) {
+        alert("Failed to update: " + updateError.message);
+      } else {
+        setIsEditing(false);
+        setEditingPostId(null);
+        fetchPosts(); 
+      }
     } else {
-      setTitle("");
-      setContent("");
-      setImageFile(null);
-      setAuthor("");
-      setIsCreating(false);
-      fetchPosts(); // Refresh list
+      // --- INSERT NEW POST ---
+      const { error: insertError } = await supabase
+        .from("posts")
+        .insert([
+          {
+            title,
+            type,
+            content,
+            cover_image: coverImageUrl,
+            author: author || "OSAS Admin",
+            date: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+          }
+        ]);
+
+      if (insertError) {
+        alert("Failed to publish: " + insertError.message);
+      } else {
+        setTitle("");
+        setContent("");
+        setImageFile(null);
+        setAuthor("");
+        setIsEditing(false); 
+        fetchPosts();
+      }
     }
+    
+    fetchStorageFiles();
     setLoading(false);
   };
 
-  // 3. DELETE: Deletes row from PostgreSQL
+  // DELETE: Deletes row from PostgreSQL
   const handleDeletePost = async (id) => {
-    if (window.confirm("Are you sure you want to delete this post?")) {
+    if (window.confirm("Are you sure you want to delete this post? This cannot be undone.")) {
       const { error } = await supabase
         .from("posts")
         .delete()
@@ -121,7 +212,22 @@ export default function Dashboard() {
       if (error) {
         alert("Delete failed: " + error.message);
       } else {
-        fetchPosts(); // Refresh list
+        fetchPosts(); 
+      }
+    }
+  };
+
+  // STORAGE DELETE: Deletes binary file from storage bucket
+  const handleDeleteFile = async (fileName) => {
+    if (window.confirm("Are you sure you want to permanently delete this image from your cloud storage? This cannot be undone.")) {
+      const { error } = await supabase.storage
+        .from("osas-assets")
+        .remove([`covers/${fileName}`]);
+
+      if (error) {
+        alert("Delete failed: " + error.message);
+      } else {
+        fetchStorageFiles(); 
       }
     }
   };
@@ -131,10 +237,98 @@ export default function Dashboard() {
     navigate("/login");
   };
 
+  const getPublicImageUrl = (fileName) => {
+    const { data: { publicUrl } } = supabase.storage
+      .from("osas-assets")
+      .getPublicUrl(`covers/${fileName}`);
+    return publicUrl;
+  };
+
+  const announcementsList = posts.filter(p => p.type === "Announcement");
+  const storiesList = posts.filter(p => p.type === "Story");
+
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-slate-200 p-6 flex flex-col justify-between hidden md:flex">
+    // Changed to flex-col on mobile, and flex-row on desktop (md)
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row relative">
+      
+      {/* --- 1. MOBILE TOP BAR HEADER (Only visible on screens < md) --- */}
+      <header className="md:hidden w-full bg-slate-900 text-slate-200 px-6 py-4 flex items-center justify-between shadow-md border-b border-slate-800 flex-shrink-0 z-30">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
+            OS
+          </div>
+          <span className="font-extrabold text-white text-base">OSAS Admin</span>
+        </div>
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 text-slate-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+        >
+          <FontAwesomeIcon icon={isMobileMenuOpen ? ["fas", "xmark"] : ["fas", "bars"]} className="w-5 h-5" />
+        </button>
+      </header>
+
+      {/* --- 2. MOBILE DRAWER SIDEBAR OVERLAY (Only visible on screens < md) --- */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 md:hidden animate-in fade-in duration-200">
+          <div className="w-64 h-full bg-slate-900 text-slate-200 p-6 flex flex-col justify-between shadow-2xl animate-in slide-in-from-left duration-300">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
+                    OS
+                  </div>
+                  <span className="font-extrabold text-white text-base">OSAS Admin</span>
+                </div>
+                <button 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 text-slate-400 hover:bg-slate-800 rounded-xl cursor-pointer"
+                >
+                  <FontAwesomeIcon icon={["fas", "xmark"]} className="w-5 h-5" />
+                </button>
+              </div>
+              <nav className="space-y-1">
+                <button 
+                  onClick={() => { setActiveTab("announcements"); setIsEditing(false); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
+                    activeTab === "announcements" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  <FontAwesomeIcon icon={["fas", "bullhorn"]} />
+                  <span>Announcements</span>
+                </button>
+                <button 
+                  onClick={() => { setActiveTab("stories"); setIsEditing(false); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
+                    activeTab === "stories" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  <FontAwesomeIcon icon={["fas", "book-open"]} />
+                  <span>Stories & Updates</span>
+                </button>
+                <button 
+                  onClick={() => { setActiveTab("storage"); setIsEditing(false); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
+                    activeTab === "storage" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  <FontAwesomeIcon icon={["fas", "images"]} />
+                  <span>Cloud Storage</span>
+                </button>
+              </nav>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-red-500/10 hover:text-red-400 text-slate-400 font-bold text-sm text-left transition-colors cursor-pointer"
+            >
+              <FontAwesomeIcon icon={["fas", "right-from-bracket"]} />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* --- 3. DESKTOP SIDEBAR NAVIGATION (Hidden on mobile) --- */}
+      <aside className="w-64 bg-slate-900 text-slate-200 p-6 flex flex-col justify-between hidden md:flex flex-shrink-0">
         <div className="space-y-6">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
@@ -143,9 +337,32 @@ export default function Dashboard() {
             <span className="font-extrabold text-white text-base">OSAS Admin</span>
           </div>
           <nav className="space-y-1">
-            <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-600/10 text-emerald-400 font-bold text-sm text-left">
-              <FontAwesomeIcon icon={["fas", "folder-open"]} />
-              <span>Posts Manager</span>
+            <button 
+              onClick={() => { setActiveTab("announcements"); setIsEditing(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
+                activeTab === "announcements" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
+              }`}
+            >
+              <FontAwesomeIcon icon={["fas", "bullhorn"]} />
+              <span>Announcements</span>
+            </button>
+            <button 
+              onClick={() => { setActiveTab("stories"); setIsEditing(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
+                activeTab === "stories" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
+              }`}
+            >
+              <FontAwesomeIcon icon={["fas", "book-open"]} />
+              <span>Stories & Updates</span>
+            </button>
+            <button 
+              onClick={() => { setActiveTab("storage"); setIsEditing(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${
+                activeTab === "storage" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"
+              }`}
+            >
+              <FontAwesomeIcon icon={["fas", "images"]} />
+              <span>Cloud Storage</span>
             </button>
           </nav>
         </div>
@@ -158,122 +375,335 @@ export default function Dashboard() {
         </button>
       </aside>
 
-      {/* Main Content */}
+      {/* --- 4. MAIN CONTENT AREA (Scrollable) --- */}
       <main className="flex-1 p-6 md:p-10 max-h-screen overflow-y-auto">
-        <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
-          <div>
-            <h1 className="text-2xl font-black text-slate-800">Posts Manager</h1>
-            <p className="text-xs text-slate-400 font-semibold mt-0.5">Manage School Announcements & Stories</p>
-          </div>
-          <button
-            onClick={() => setIsCreating(!isCreating)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-          >
-            <FontAwesomeIcon icon={isCreating ? ["fas", "xmark"] : ["fas", "plus"]} />
-            <span>{isCreating ? "Cancel" : "Create New Post"}</span>
-          </button>
-        </div>
-
-        {isCreating ? (
-          <form onSubmit={handleSavePost} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5 max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase">Title</label>
-                <input 
-                  type="text" required value={title} onChange={e => setTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
-                  placeholder="Enter post title"
-                />
+        
+        {/* VIEW 1 & 2: POSTS MANAGER (Shared Form, Separated Lists) */}
+        {activeTab !== "storage" && (
+          <>
+            {/* Header: Made flex-col on mobile, flex-row on desktop */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-slate-200">
+              <div>
+                <h1 className="text-2xl font-black text-slate-800 uppercase tracking-wide">
+                  {activeTab === "announcements" ? "Announcements Manager" : "Stories Manager"}
+                </h1>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                  {activeTab === "announcements" ? "Manage School Announcements & Bulletins" : "Manage Campus Logs, Diaries, & Featured Articles"}
+                </p>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase">Type</label>
-                <select 
-                  value={type} onChange={e => setType(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700 bg-white"
-                >
-                  <option value="Announcement">Announcement</option>
-                  <option value="Story">Story & Update</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase">Author</label>
-                <input 
-                  type="text" value={author} onChange={e => setAuthor(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
-                  placeholder="E.g., OSAS Office (Optional)"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase">Cover Image</label>
-                <input 
-                  type="file" accept="image/*" onChange={handleImageChange}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-400 uppercase">Article Content</label>
-              <div className="rounded-xl border border-slate-200 bg-white">
-                <ReactQuill 
-                  theme="snow"
-                  value={content}
-                  onChange={setContent}
-                  modules={quillModules}
-                />
-              </div>
-            </div>
-
-            <div className="pt-12 text-right">
-              <button 
-                type="submit"
-                disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-8 py-3 rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              <button
+                onClick={handleCreateClick}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto"
               >
-                {loading ? "Publishing to Cloud..." : "Publish Article"}
+                <FontAwesomeIcon icon={isEditing ? ["fas", "xmark"] : ["fas", "plus"]} />
+                <span>{isEditing ? "Cancel" : "Create New Post"}</span>
               </button>
             </div>
-          </form>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 max-w-5xl mx-auto">
-            {posts.length === 0 ? (
-              <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
-                <FontAwesomeIcon icon={["fas", "folder-open"]} className="text-slate-300 w-12 h-12 mb-3" />
-                <h3 className="font-bold text-slate-700 text-sm">No articles published yet</h3>
-                <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish an article.</p>
-              </div>
-            ) : (
-              posts.map((post) => (
-                <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm">
-                  <div className="flex items-center gap-4">
-                    {post.cover_image ? (
-                      <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" />
-                    ) : (
-                      <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>
-                    )}
-                    <div>
-                      <span className="text-[9px] uppercase tracking-wider bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                        {post.type}
-                      </span>
-                      <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
-                      <p className="text-[10px] text-slate-400 font-medium mt-0.5">Published on: {post.date}</p>
-                    </div>
+
+            {isEditing ? (
+              /* CREATE / EDIT FORM CONTAINER */
+              <form onSubmit={handleSavePost} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5 max-w-4xl mx-auto">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Title</label>
+                  <input 
+                    type="text" required value={title} onChange={e => setTitle(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
+                    placeholder="Enter post title"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Author</label>
+                    <input 
+                      type="text" value={author} onChange={e => setAuthor(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
+                      placeholder="E.g., OSAS Office (Optional)"
+                    />
                   </div>
+                  
+                  {/* REUSABLE COVER IMAGE SELECTOR */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Cover Image</label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input 
+                        type="file" accept="image/*" onChange={handleImageChange}
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsGalleryOpen(true)}
+                        className="px-4 py-2 rounded-xl border border-emerald-600/30 text-emerald-800 hover:bg-emerald-50 font-bold text-xs flex-shrink-0 cursor-pointer transition-colors"
+                      >
+                        Browse Storage
+                      </button>
+                    </div>
+
+                    {/* LIVE THUMBNAIL PREVIEW */}
+                    {(imageFile || existingCoverImage) && (
+                      <div className="flex items-center gap-2.5 mt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/50">
+                        <img 
+                          src={imageFile ? URL.createObjectURL(imageFile) : existingCoverImage} 
+                          alt="" 
+                          className="w-12 h-12 rounded-lg object-cover bg-slate-200" 
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-700 truncate">
+                            {imageFile ? imageFile.name : "Stored Cover Photo"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                            {imageFile ? formatBytes(imageFile.size) : "Cloud URL Loaded"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Article Content</label>
+                  <div className="rounded-xl border border-slate-200 bg-white">
+                    <ReactQuill 
+                      theme="snow"
+                      value={content}
+                      onChange={setContent}
+                      modules={quillModules}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-12 text-right">
                   <button 
-                    onClick={() => handleDeletePost(post.id)}
-                    className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-3 py-1 cursor-pointer"
+                    type="submit"
+                    disabled={loading}
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-8 py-3 rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    Delete
+                    {loading ? "Syncing Cloud..." : editingPostId ? "Update Article" : "Publish Article"}
                   </button>
                 </div>
-              ))
+              </form>
+            ) : (
+              /* --- RESPONSIVE CATEGORIZED LISTS --- */
+              <div className="grid grid-cols-1 gap-4 max-w-5xl mx-auto">
+                {/* 1. ANNOUNCEMENTS LIST */}
+                {activeTab === "announcements" && (
+                  announcementsList.length === 0 ? (
+                    <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
+                      <FontAwesomeIcon icon={["fas", "bullhorn"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
+                      <h3 className="font-bold text-slate-700 text-sm">No announcements published yet</h3>
+                      <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish an announcement.</p>
+                    </div>
+                  ) : (
+                    announcementsList.map((post) => (
+                      <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                        <div className="flex items-center gap-4 text-left">
+                          {post.cover_image ? (
+                            <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>
+                          )}
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-slate-800 text-sm leading-snug truncate sm:whitespace-normal" title={post.title}>
+                              {post.title}
+                            </h4>
+                            <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date} | By: {post.author}</p>
+                          </div>
+                        </div>
+                        {/* Tablet/Desktop Text links turn into beautiful, easy-to-tap pill buttons on mobile! */}
+                        <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                          <button 
+                            onClick={() => handleEditClick(post)}
+                            className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDeletePost(post.id)}
+                            className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )
+                )}
+
+                {/* 2. STORIES LIST */}
+                {activeTab === "stories" && (
+                  storiesList.length === 0 ? (
+                    <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
+                      <FontAwesomeIcon icon={["fas", "book-open"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
+                      <h3 className="font-bold text-slate-700 text-sm">No campus stories published yet</h3>
+                      <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish a story.</p>
+                    </div>
+                  ) : (
+                    storiesList.map((post) => (
+                      <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                        <div className="flex items-center gap-4 text-left">
+                          {post.cover_image ? (
+                            <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>
+                          )}
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-slate-800 text-sm leading-snug truncate sm:whitespace-normal" title={post.title}>
+                              {post.title}
+                            </h4>
+                            <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date} | By: {post.author}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                          <button 
+                            onClick={() => handleEditClick(post)}
+                            className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDeletePost(post.id)}
+                            className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-3 py-1 cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
+
+        {/* --- VIEW 3: CLOUD STORAGE MANAGER --- */}
+        {activeTab === "storage" && (
+          <>
+            <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+              <div>
+                <h1 className="text-2xl font-black text-slate-800">Cloud Storage</h1>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">Manage Assets in 'osas-assets' Bucket</p>
+              </div>
+              <button
+                onClick={fetchStorageFiles}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm px-4 py-2.5 rounded-xl border border-slate-200 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <FontAwesomeIcon icon={["fas", "rotate"]} className={loadingStorage ? "animate-spin" : ""} />
+                <span>Refresh Storage</span>
+              </button>
+            </div>
+
+            {loadingStorage ? (
+              <div className="flex justify-center items-center py-32">
+                <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : storageFiles.length === 0 ? (
+              <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl max-w-5xl mx-auto">
+                <FontAwesomeIcon icon={["fas", "images"]} className="text-slate-300 w-12 h-12 mb-3" />
+                <h3 className="font-bold text-slate-700 text-sm">No assets uploaded yet</h3>
+                <p className="text-xs text-slate-400 mt-1">Uploaded cover photos will appear here automatically.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+                {storageFiles.map((file) => {
+                  const fileUrl = getPublicImageUrl(file.name);
+                  const formattedSize = formatBytes(file.metadata?.size);
+                  const uploadedDate = new Date(file.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+                  return (
+                    <div key={file.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
+                      <div className="w-full h-36 bg-slate-100 overflow-hidden relative">
+                        <img 
+                          src={fileUrl} 
+                          alt="" 
+                          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" 
+                        />
+                      </div>
+                      <div className="p-4 flex flex-col flex-1 justify-between space-y-3">
+                        <div className="space-y-0.5">
+                          <h4 className="font-bold text-slate-800 text-xs truncate" title={file.name}>
+                            {file.name}
+                          </h4>
+                          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400">
+                            <span>{formattedSize}</span>
+                            <span>•</span>
+                            <span>{uploadedDate}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteFile(file.name)}
+                          className="w-full py-1.5 rounded-lg border border-red-100 hover:bg-red-50 text-red-500 hover:text-red-700 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <FontAwesomeIcon icon={["fas", "trash"]} className="w-3 h-3" />
+                          <span>Delete Image</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
       </main> 
+
+      {/* --- REUSABLE CLOUD GALLERY MODAL OVERLAY --- */}
+      {isGalleryOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col p-6 shadow-2xl overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="font-black text-slate-800 text-lg">Cloud Gallery</h3>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">Select a previously uploaded cover photo</p>
+              </div>
+              <button 
+                onClick={() => setIsGalleryOpen(false)}
+                className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                <FontAwesomeIcon icon={["fas", "xmark"]} className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Grid of Images */}
+            <div className="flex-1 overflow-y-auto py-6">
+              {storageFiles.length === 0 ? (
+                <div className="text-center py-20">
+                  <FontAwesomeIcon icon={["fas", "images"]} className="text-slate-200 w-12 h-12 mb-3" />
+                  <h4 className="font-bold text-slate-400 text-sm">No assets found in your cloud storage</h4>
+                  <p className="text-xs text-slate-400 mt-1">Upload a cover image first to populate the gallery.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {storageFiles.map((file) => {
+                    const url = getPublicImageUrl(file.name);
+                    return (
+                      <div 
+                        key={file.id}
+                        onClick={() => {
+                          setExistingCoverImage(url); // Assign selected image URL
+                          setImageFile(null); // Clear new file uploader
+                          setIsGalleryOpen(false); // Close Modal
+                        }}
+                        className="group border border-slate-200 rounded-2xl overflow-hidden cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all duration-300 relative bg-slate-50 h-32 select-none"
+                      >
+                        <img src={url} alt="" className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" />
+                        <div className="absolute inset-0 bg-emerald-950/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="bg-emerald-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-md">Select Image</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
