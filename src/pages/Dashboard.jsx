@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import ReactQuill, { Quill } from "react-quill-new";
+import ReactQuill, { Quill } from "react-quill-new"; 
+import "react-quill-new/dist/quill.snow.css"; 
 import ImageResize from "@mgreminger/quill-image-resize-module";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { supabase } from "../supabaseClient";
@@ -17,9 +18,7 @@ const quillModules = {
     ['link', 'image'],                                
     ['clean']                                         
   ],
-  imageResize: {
-    modules: [ 'Resize', 'DisplaySize', 'Toolbar' ] 
-  }
+  imageResize: {}
 };
 
 const iconOptions = [
@@ -70,6 +69,7 @@ export default function Dashboard() {
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [eventLocation, setEventLocation] = useState("");
+  const [editingActivityId, setEditingActivityId] = useState(null); // 💡 Tracks if we are editing an event
   
   const navigate = useNavigate();
 
@@ -148,8 +148,20 @@ export default function Dashboard() {
     setIsEditing(true);  
   };
 
+  // Pre-populates the Calendar Form when clicking Edit on an event
+  const handleEditActivityClick = (act) => {
+    setEditingActivityId(act.id);
+    setEventTitle(act.title);
+    setEventDescription(act.description || "");
+    setEventDate(act.activity_date);
+    setEventTime(act.start_time || "");
+    setEventLocation(act.location || "");
+    setIsEditing(true); // Open form
+  };
+
   const handleCreateClick = () => {
     setEditingPostId(null);
+    setEditingActivityId(null); // Reset calendar edit state
     setTitle("");
     if (activeTab === "announcements") setType("Announcement");
     else if (activeTab === "stories") setType("Story");
@@ -200,7 +212,7 @@ export default function Dashboard() {
     }
 
     if (editingPostId) {
-      // --- UPDATE EXISTING ---
+      // --- UPDATE EXISTING POST ---
       const { error: updateError } = await supabase
         .from("posts")
         .update({
@@ -222,7 +234,7 @@ export default function Dashboard() {
         fetchPosts(); 
       }
     } else {
-      // --- INSERT NEW ---
+      // --- INSERT NEW POST ---
       const { error: insertError } = await supabase
         .from("posts")
         .insert([
@@ -256,37 +268,57 @@ export default function Dashboard() {
     setLoading(false);
   };
 
+  // INSERT / UPDATE: Academic Calendar Event
   const handleSaveActivity = async (e) => {
     e.preventDefault();
     if (!eventTitle || !eventDate) return;
     setLoading(true);
 
-    const { error } = await supabase
-      .from("activities")
-      .insert([
-        {
-          title: eventTitle,
-          description: eventDescription,
-          activity_date: eventDate,
-          start_time: eventTime || "Whole Day",
-          location: eventLocation || "OSAS Office"
-        }
-      ]);
+    const eventPayload = {
+      title: eventTitle,
+      description: eventDescription,
+      activity_date: eventDate,
+      // Default fallback changed to academic "TBA" if left completely blank!
+      start_time: eventTime.trim() || "TBA",
+      location: eventLocation.trim() || "TBA"
+    };
 
-    if (error) {
-      alert("Failed to save activity: " + error.message);
+    if (editingActivityId) {
+      // --- UPDATE EXISTING EVENT ---
+      const { error } = await supabase
+        .from("activities")
+        .update(eventPayload)
+        .eq("id", editingActivityId);
+
+      if (error) {
+        alert("Failed to update event: " + error.message);
+      } else {
+        setEditingActivityId(null);
+        setIsEditing(false);
+        fetchActivities();
+      }
     } else {
-      setEventTitle("");
-      setEventDescription("");
-      setEventDate("");
-      setEventTime("");
-      setEventLocation("");
-      setIsEditing(false);
-      fetchActivities(); 
+      // --- INSERT NEW EVENT ---
+      const { error } = await supabase
+        .from("activities")
+        .insert([eventPayload]);
+
+      if (error) {
+        alert("Failed to save activity: " + error.message);
+      } else {
+        setEventTitle("");
+        setEventDescription("");
+        setEventDate("");
+        setEventTime("");
+        setEventLocation("");
+        setIsEditing(false);
+        fetchActivities(); 
+      }
     }
     setLoading(false);
   };
 
+  // DELETE: Delete calendar event
   const handleDeleteActivity = async (id) => {
     if (window.confirm("Are you sure you want to permanently delete this event?")) {
       const { error } = await supabase
@@ -680,11 +712,12 @@ export default function Dashboard() {
                 </div>
 
                 <div className="pt-6 text-right">
+                  {/* 💡 THE FIXED EDIT/PUBLISH EVENT CTA BUTTON */}
                   <button 
                     type="submit" disabled={loading}
                     className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-8 py-3 rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
-                    {loading ? "Saving Event..." : "Publish Event to Calendar"}
+                    {loading ? "Saving Event..." : editingActivityId ? "Update Event" : "Publish Event to Calendar"}
                   </button>
                 </div>
               </form>
@@ -717,6 +750,8 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                            {/* 💡 THE NEW CALENDAR EDIT BUTTON */}
+                            <button onClick={() => handleEditActivityClick(act)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
                             <button onClick={() => handleDeleteActivity(act.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
                           </div>
                         </div>

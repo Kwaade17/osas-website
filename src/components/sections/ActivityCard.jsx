@@ -119,13 +119,6 @@ export default function ActivityCard() {
 
         {/* Right Side: Timers */}
         <div className="flex-shrink-0 select-none">
-          {/* Today */}
-          {isToday && (
-            <div className="bg-emerald-600 text-white font-black px-6 py-3 rounded-2xl text-sm shadow-md animate-pulse uppercase tracking-wider">
-              Live Today!
-            </div>
-          )}
-
           {/* 4 to 7 days left (Wording changed to "6 days left" as requested) */}
           {!isToday && daysLeft > 3 && daysLeft <= 7 && (
             <div className="text-center sm:text-right">
