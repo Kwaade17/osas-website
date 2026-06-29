@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import ReactQuill, { Quill } from "react-quill-new"; // <-- Added { Quill }
-import ImageResize from "@mgreminger/quill-image-resize-module"; // <-- Added ImageResize module
+import ReactQuill, { Quill } from "react-quill-new"; 
+import "react-quill-new/dist/quill.snow.css"; 
+import ImageResize from "@mgreminger/quill-image-resize-module";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { supabase } from "../supabaseClient";
 
 Quill.register("modules/imageResize", ImageResize);
 
-// Setup Word-like toolbar tools
 const quillModules = {
   toolbar: [
     [{ 'header': [1, 2, 3, false] }],
@@ -17,12 +17,9 @@ const quillModules = {
     ['link', 'image'],                                
     ['clean']                                         
   ],
-  imageResize: {
-    modules: [ 'Resize', 'DisplaySize' ] 
-  }
+  imageResize: {}
 };
 
-// Pre-defined slate of high-quality FontAwesome icons for services
 const iconOptions = [
   { label: "File / Document", value: "fa-file" },
   { label: "Speech Message", value: "fa-message" },
@@ -33,7 +30,6 @@ const iconOptions = [
   { label: "Info Circle", value: "fa-circle-info" }
 ];
 
-// Helper to format file sizes nicely
 const formatBytes = (bytes) => {
   if (!bytes || bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -43,40 +39,44 @@ const formatBytes = (bytes) => {
 };
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState("announcements"); // "announcements", "stories", "services", or "storage"
+  const [activeTab, setActiveTab] = useState("announcements"); // "announcements", "stories", "services", "calendar", "storage"
   const [posts, setPosts] = useState([]);
+  const [activities, setActivities] = useState([]); 
   const [storageFiles, setStorageFiles] = useState([]);
   const [loadingStorage, setLoadingStorage] = useState(false);
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingActivities, setLoadingActivities] = useState(false);
 
-  // Form States
+  // Form States (Announcements/Stories/Services)
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Announcement");
   const [imageFile, setImageFile] = useState(null); 
   const [content, setContent] = useState("");
   const [author, setAuthor] = useState("");
-  const [isEditing, setIsEditing] = useState(false); // Controls form visibility
-  
-  // 💡 FIXED: Added the missing icon & description state hooks here!
+  const [isEditing, setIsEditing] = useState(false); 
   const [icon, setIcon] = useState("fa-file");
   const [description, setDescription] = useState("");
-  
-  // EDIT & REUSE STATES:
   const [editingPostId, setEditingPostId] = useState(null); 
   const [existingCoverImage, setExistingCoverImage] = useState(""); 
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false); // Controls the Cloud Gallery modal
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Controls mobile sidebar drawer
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false); 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Calendar Form States
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDescription, setEventDescription] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [eventTime, setEventTime] = useState("");
+  const [eventLocation, setEventLocation] = useState("");
   
   const navigate = useNavigate();
 
-  // Load database rows & pre-fetch storage files on mount
   useEffect(() => {
     fetchPosts();
+    fetchActivities();
     fetchStorageFiles();
   }, []);
 
-  // SELECT: Fetch posts from Supabase PostgreSQL
   const fetchPosts = async () => {
     setLoadingPosts(true);
     const { data, error } = await supabase
@@ -92,7 +92,21 @@ export default function Dashboard() {
     setLoadingPosts(false);
   };
 
-  // STORAGE SELECT: Fetch and list files
+  const fetchActivities = async () => {
+    setLoadingActivities(true);
+    const { data, error } = await supabase
+      .from("activities")
+      .select("*")
+      .order("activity_date", { ascending: true });
+
+    if (error) {
+      alert("Error loading activities: " + error.message);
+    } else {
+      setActivities(data);
+    }
+    setLoadingActivities(false);
+  };
+
   const fetchStorageFiles = async () => {
     setLoadingStorage(true);
     const { data, error } = await supabase.storage
@@ -119,7 +133,6 @@ export default function Dashboard() {
     }
   };
 
-  // TRIGGER EDIT: Pre-populates the editor with the post's existing values
   const handleEditClick = (post) => {
     setEditingPostId(post.id);
     setTitle(post.title);
@@ -127,13 +140,12 @@ export default function Dashboard() {
     setContent(post.content);
     setAuthor(post.author);
     setExistingCoverImage(post.cover_image || "");
-    setIcon(post.icon || "fa-file"); // Map existing icon
-    setDescription(post.description || ""); // Map existing description
+    setIcon(post.icon || "fa-file"); 
+    setDescription(post.description || ""); 
     setImageFile(null); 
     setIsEditing(true);  
   };
 
-  // Handles clicking the main CTA button to reset states for a fresh create form
   const handleCreateClick = () => {
     setEditingPostId(null);
     setTitle("");
@@ -144,13 +156,18 @@ export default function Dashboard() {
     setContent("");
     setAuthor("");
     setExistingCoverImage("");
-    setIcon("fa-file"); // Reset default icon
-    setDescription(""); // Reset default description
+    setIcon("fa-file"); 
+    setDescription(""); 
     setImageFile(null);
     setIsEditing(!isEditing);
+
+    setEventTitle("");
+    setEventDescription("");
+    setEventDate("");
+    setEventTime("");
+    setEventLocation("");
   };
 
-  // INSERT / UPDATE: Dynamically handles creating or modifying rows
   const handleSavePost = async (e) => {
     e.preventDefault();
     if (!title || !content) return;
@@ -181,7 +198,6 @@ export default function Dashboard() {
     }
 
     if (editingPostId) {
-      // --- UPDATE EXISTING ---
       const { error: updateError } = await supabase
         .from("posts")
         .update({
@@ -203,7 +219,6 @@ export default function Dashboard() {
         fetchPosts(); 
       }
     } else {
-      // --- INSERT NEW ---
       const { error: insertError } = await supabase
         .from("posts")
         .insert([
@@ -237,7 +252,52 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  // DELETE: Deletes row from PostgreSQL
+  const handleSaveActivity = async (e) => {
+    e.preventDefault();
+    if (!eventTitle || !eventDate) return;
+    setLoading(true);
+
+    const { error } = await supabase
+      .from("activities")
+      .insert([
+        {
+          title: eventTitle,
+          description: eventDescription,
+          activity_date: eventDate,
+          start_time: eventTime || "Whole Day",
+          location: eventLocation || "OSAS Office"
+        }
+      ]);
+
+    if (error) {
+      alert("Failed to save activity: " + error.message);
+    } else {
+      setEventTitle("");
+      setEventDescription("");
+      setEventDate("");
+      setEventTime("");
+      setEventLocation("");
+      setIsEditing(false);
+      fetchActivities(); 
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteActivity = async (id) => {
+    if (window.confirm("Are you sure you want to permanently delete this event?")) {
+      const { error } = await supabase
+        .from("activities")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        alert("Failed to delete: " + error.message);
+      } else {
+        fetchActivities();
+      }
+    }
+  };
+
   const handleDeletePost = async (id) => {
     if (window.confirm("Are you sure you want to delete this post? This cannot be undone.")) {
       const { error } = await supabase
@@ -315,6 +375,7 @@ export default function Dashboard() {
                 <button onClick={() => { setActiveTab("announcements"); setIsEditing(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left ${activeTab === "announcements" ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400"}`}><FontAwesomeIcon icon={["fas", "bullhorn"]} /><span>Announcements</span></button>
                 <button onClick={() => { setActiveTab("stories"); setIsEditing(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left ${activeTab === "stories" ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400"}`}><FontAwesomeIcon icon={["fas", "book-open"]} /><span>Stories & Updates</span></button>
                 <button onClick={() => { setActiveTab("services"); setIsEditing(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left ${activeTab === "services" ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400"}`}><FontAwesomeIcon icon={["fas", "kit-medical"]} /><span>Services Offer</span></button>
+                <button onClick={() => { setActiveTab("calendar"); setIsEditing(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left ${activeTab === "calendar" ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400"}`}><FontAwesomeIcon icon={["fas", "calendar-days"]} /><span>Academic Calendar</span></button>
                 <button onClick={() => { setActiveTab("storage"); setIsEditing(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left ${activeTab === "storage" ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400"}`}><FontAwesomeIcon icon={["fas", "images"]} /><span>Cloud Storage</span></button>
               </nav>
             </div>
@@ -334,6 +395,7 @@ export default function Dashboard() {
             <button onClick={() => { setActiveTab("announcements"); setIsEditing(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${activeTab === "announcements" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"}`}><FontAwesomeIcon icon={["fas", "bullhorn"]} /><span>Announcements</span></button>
             <button onClick={() => { setActiveTab("stories"); setIsEditing(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${activeTab === "stories" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"}`}><FontAwesomeIcon icon={["fas", "book-open"]} /><span>Stories & Updates</span></button>
             <button onClick={() => { setActiveTab("services"); setIsEditing(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${activeTab === "services" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"}`}><FontAwesomeIcon icon={["fas", "kit-medical"]} /><span>Services Offer</span></button>
+            <button onClick={() => { setActiveTab("calendar"); setIsEditing(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${activeTab === "calendar" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"}`}><FontAwesomeIcon icon={["fas", "calendar-days"]} /><span>Academic Calendar</span></button>
             <button onClick={() => { setActiveTab("storage"); setIsEditing(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm text-left transition-colors cursor-pointer ${activeTab === "storage" ? "bg-emerald-600/10 text-emerald-400" : "hover:bg-slate-800 text-slate-400"}`}><FontAwesomeIcon icon={["fas", "images"]} /><span>Cloud Storage</span></button>
           </nav>
         </div>
@@ -343,9 +405,9 @@ export default function Dashboard() {
       {/* Main Content Area */}
       <main className="flex-1 p-6 md:p-10 max-h-screen overflow-y-auto">
         
-        {activeTab !== "storage" && (
+        {/* VIEW 1 & 2 & 3: GENERAL POSTS */}
+        {activeTab !== "storage" && activeTab !== "calendar" && (
           <>
-            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-slate-200">
               <div>
                 <h1 className="text-2xl font-black text-slate-800 uppercase tracking-wide">
@@ -455,105 +517,195 @@ export default function Dashboard() {
                 </div>
               </form>
             ) : (
-              /* DYNAMIC LOADING PLACEHOLDER FOR LISTS */
-              loadingPosts ? (
+              /* LIST MANAGER */
+              <div className="grid grid-cols-1 gap-4 max-w-5xl mx-auto animate-in fade-in duration-300">
+                {/* Announcements List */}
+                {activeTab === "announcements" && announcementsList.map((post) => (
+                  <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                    <div className="flex items-center gap-4 text-left">
+                      {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-xs font-bold uppercase flex-shrink-0">No Img</div>}
+                      <div className="min-w-0">
+                        <span className="text-[9px] uppercase tracking-wider bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Announcement</span>
+                        <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
+                        <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                      <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
+                      <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Stories List */}
+                {activeTab === "stories" && storiesList.map((post) => (
+                  <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                    <div className="flex items-center gap-4 text-left">
+                      {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>}
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
+                        <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                      <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
+                      <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Services List */}
+                {activeTab === "services" && (
+                  servicesList.length === 0 ? (
+                    <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
+                      <FontAwesomeIcon icon={["fas", "kit-medical"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
+                      <h3 className="font-bold text-slate-700 text-sm">No services published yet</h3>
+                      <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish a service.</p>
+                    </div>
+                  ) : (
+                    servicesList.map((post) => (
+                      <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                        <div className="flex items-center gap-4 text-left">
+                          <div className="w-16 h-16 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-lg flex-shrink-0 border border-emerald-100">
+                            <FontAwesomeIcon icon={["fas", (post.icon || "file").replace("fa-", "")]} />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[9px] uppercase tracking-wider bg-blue-50 text-blue-800 font-bold px-2 py-0.5 rounded-full">Service</span>
+                            <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
+                            <p className="text-[10px] text-slate-400 font-semibold mt-1">Summary: {post.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                          <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
+                          <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
+                        </div>
+                      </div>
+                    ))
+                  )
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* --- VIEW 4: ACADEMIC CALENDAR MANAGER --- */}
+        {activeTab === "calendar" && (
+          <>
+            <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+              <div>
+                <h1 className="text-2xl font-black text-slate-800 uppercase tracking-wide">Academic Calendar</h1>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">Manage Calendar of Activities & Countdown Events</p>
+              </div>
+              <button
+                onClick={handleCreateClick}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto"
+              >
+                <FontAwesomeIcon icon={isEditing ? ["fas", "xmark"] : ["fas", "plus"]} />
+                <span>{isEditing ? "Cancel" : "Create New Event"}</span>
+              </button>
+            </div>
+
+            {isEditing ? (
+              /* CALENDAR EVENT CREATION FORM */
+              <form onSubmit={handleSaveActivity} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5 max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Event Title</label>
+                    <input 
+                      type="text" required value={eventTitle} onChange={e => setEventTitle(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
+                      placeholder="E.g., Good Moral Clearance Deadline"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Event Date</label>
+                    <input 
+                      type="date" required value={eventDate} onChange={e => setEventDate(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Start Time</label>
+                    <input 
+                      type="text" value={eventTime} onChange={e => setEventTime(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
+                      placeholder="E.g., 8:00 AM or Whole Day (Optional)"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Event Location</label>
+                    <input 
+                      type="text" value={eventLocation} onChange={e => setEventLocation(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
+                      placeholder="E.g., OSAS Office, Ground Floor"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Event Description / Guidelines</label>
+                  <textarea 
+                    value={eventDescription} onChange={e => setEventDescription(e.target.value)}
+                    rows={4}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
+                    placeholder="Provide short processing guidelines or event details for students..."
+                  />
+                </div>
+
+                <div className="pt-6 text-right">
+                  <button 
+                    type="submit" disabled={loading}
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-8 py-3 rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    {loading ? "Saving Event..." : "Publish Event to Calendar"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* CALENDAR EVENTS LIST */
+              loadingActivities ? (
                 <div className="flex justify-center items-center py-32">
                   <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
                 </div>
               ) : (
-                /* LIST MANAGER */
-                <div className="grid grid-cols-1 gap-4 max-w-5xl mx-auto animate-in fade-in duration-300">
-                  {/* Announcements List */}
-                  {activeTab === "announcements" && (
-                    announcementsList.length === 0 ? (
-                      <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
-                        <FontAwesomeIcon icon={["fas", "bullhorn"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
-                        <h3 className="font-bold text-slate-700 text-sm">No announcements published yet</h3>
-                        <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish an announcement.</p>
-                      </div>
-                    ) : (
-                      announcementsList.map((post) => (
-                        <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                <div className="grid grid-cols-1 gap-4 max-w-5xl mx-auto">
+                  {activities.length === 0 ? (
+                    <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
+                      <FontAwesomeIcon icon={["fas", "calendar-days"]} className="text-slate-300 w-12 h-12 mb-3" />
+                      <h3 className="font-bold text-slate-700 text-sm">No events scheduled yet</h3>
+                      <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to schedule an activity.</p>
+                    </div>
+                  ) : (
+                    activities.map((act) => {
+                      const formattedDate = new Date(act.activity_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+                      return (
+                        <div key={act.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
                           <div className="flex items-center gap-4 text-left">
-                            {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-xs font-bold uppercase flex-shrink-0">No Img</div>}
+                            <div className="w-16 h-16 rounded-xl bg-emerald-50 text-emerald-700 flex flex-col items-center justify-center text-sm font-bold flex-shrink-0 border border-emerald-100">
+                              <FontAwesomeIcon icon={["fas", "calendar-day"]} className="w-5 h-5" />
+                            </div>
                             <div className="min-w-0">
-                              <span className="text-[9px] uppercase tracking-wider bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Announcement</span>
-                              <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
-                              <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
+                              <h4 className="font-bold text-slate-800 text-sm leading-snug">{act.title}</h4>
+                              <p className="text-[10px] text-slate-400 font-semibold mt-1">Date: {formattedDate} | Time: {act.start_time} | Location: {act.location}</p>
                             </div>
                           </div>
                           <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
-                            <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
-                            <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
+                            <button onClick={() => handleDeleteActivity(act.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
                           </div>
                         </div>
-                      ))
-                    )
-                  )}
-
-                  {/* Stories List */}
-                  {activeTab === "stories" && (
-                    storiesList.length === 0 ? (
-                      <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
-                        <FontAwesomeIcon icon={["fas", "book-open"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
-                        <h3 className="font-bold text-slate-700 text-sm">No campus stories published yet</h3>
-                        <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish a story.</p>
-                      </div>
-                    ) : (
-                      storiesList.map((post) => (
-                        <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
-                          <div className="flex items-center gap-4 text-left">
-                            {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>}
-                            <div className="min-w-0">
-                              <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
-                              <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
-                            <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
-                            <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
-                          </div>
-                        </div>
-                      ))
-                    )
-                  )}
-
-                  {/* Services List */}
-                  {activeTab === "services" && (
-                    servicesList.length === 0 ? (
-                      <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
-                        <FontAwesomeIcon icon={["fas", "kit-medical"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
-                        <h3 className="font-bold text-slate-700 text-sm">No services published yet</h3>
-                        <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish a service.</p>
-                      </div>
-                    ) : (
-                      servicesList.map((post) => (
-                        <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
-                          <div className="flex items-center gap-4 text-left">
-                            <div className="w-16 h-16 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-lg flex-shrink-0 border border-emerald-100">
-                              <FontAwesomeIcon icon={["fas", (post.icon || "file").replace("fa-", "")]} />
-                            </div>
-                            <div className="min-w-0">
-                              <span className="text-[9px] uppercase tracking-wider bg-blue-50 text-blue-800 font-bold px-2 py-0.5 rounded-full">Service</span>
-                              <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
-                              <p className="text-[10px] text-slate-400 font-semibold mt-1">Summary: {post.description}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
-                            <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
-                            <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
-                          </div>
-                        </div>
-                      ))
-                    )
+                      )
+                    })
                   )}
                 </div>
               )
             )}
           </>
         )}
-        
-        {/* --- VIEW 3: CLOUD STORAGE MANAGER --- */}
+
+        {/* --- VIEW 5: CLOUD STORAGE --- */}
         {activeTab === "storage" && (
           <>
             <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">

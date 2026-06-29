@@ -1,8 +1,9 @@
 import React from "react";
-import HeroOne from "../components/sections/HeroOne";
-import Announcement from "../components/sections/Announcement";
-import SlideFeature from "../components/sections/SlideFeature";
-import Stories from "../components/sections/Stories";
+import HeroOne from "../components/Sections/HeroOne";
+import ActivityCard from "../components/Sections/ActivityCard"; // <-- IMPORT CARD
+import Announcement from "../components/Sections/Announcement";
+import SlideFeature from "../components/Sections/SlideFeature";
+import Stories from "../components/Sections/Stories";
 import About from "../components/About";
 import Contact from "../components/Contact";
 
@@ -12,11 +13,15 @@ export default function Home() {
       
       <HeroOne />
 
+      {/* --- NEW DYNAMIC CALENDAR COUNTDOWN CARD SECTION --- */}
+      <div className="w-full pt-4 px-4 md:px-8">
+        <ActivityCard />
+      </div>
+
       <div className="w-full p-4 md:p-8 space-y-3">
         <Announcement />
       </div>
 
-      {/* FIXED: Removed the max-w-4xl constraint and hardcoded header so SlideFeature can align beautifully! */}
       <div className="w-full p-4 md:p-8 space-y-3 border-t-2 border-slate-100">
         <SlideFeature />
       </div>

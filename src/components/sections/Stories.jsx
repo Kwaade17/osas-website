@@ -37,12 +37,16 @@ const StayTunedCard = ({ index }) => (
   </div>
 );
 
-// Decodes HTML entities and strips tags cleanly
+// 💡 FIXED: Decodes HTML entities, injects spaces before closing block tags, and strips tags cleanly!
 const getPlainText = (htmlContent) => {
   if (!htmlContent) return "";
+  const spacedHtml = htmlContent
+    .replace(/<\/p>/g, " </p>")
+    .replace(/<\/h[1-6]>/g, " </h>")
+    .replace(/<br\s*\/?>/g, " <br/>");
   const tempDiv = document.createElement("div");
-  tempDiv.innerHTML = htmlContent;
-  return tempDiv.textContent || tempDiv.innerText || "";
+  tempDiv.innerHTML = spacedHtml;
+  return (tempDiv.textContent || tempDiv.innerText || "").replace(/\s+/g, " ").trim();
 };
 
 export default function Stories() {
@@ -229,7 +233,7 @@ export default function Stories() {
         </div>
       )}
 
-      {/* --- DESKTOP PAGINATION (Fully written out) --- */}
+      {/* --- DESKTOP PAGINATION --- */}
       {!loading && totalDesktopPages > 1 && (
         <div className="flex justify-end items-center space-x-2 pt-2">
           <button
@@ -252,7 +256,7 @@ export default function Stories() {
         </div>
       )}
 
-      {/* --- MOBILE VIEW (Fully written out) --- */}
+      {/* --- MOBILE VIEW --- */}
       {!loading && (
         <div className="flex flex-col sm:hidden space-y-4">
           {currentMobileStories.length > 0 ? (
