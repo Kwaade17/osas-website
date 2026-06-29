@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import ReactQuill, { Quill } from "react-quill-new"; 
-import "react-quill-new/dist/quill.snow.css"; 
+import ReactQuill, { Quill } from "react-quill-new";
 import ImageResize from "@mgreminger/quill-image-resize-module";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { supabase } from "../supabaseClient";
