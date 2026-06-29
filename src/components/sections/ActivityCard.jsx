@@ -122,7 +122,7 @@ export default function ActivityCard() {
           {/* Today */}
           {isToday && (
             <div className="bg-emerald-600 text-white font-black px-6 py-3 rounded-2xl text-sm shadow-md animate-pulse uppercase tracking-wider">
-              Live Today!
+              Happening Today!
             </div>
           )}
 
