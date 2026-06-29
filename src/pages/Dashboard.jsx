@@ -8,6 +8,7 @@ import { supabase } from "../supabaseClient";
 
 Quill.register("modules/imageResize", ImageResize);
 
+// Setup Word-like toolbar tools
 const quillModules = {
   toolbar: [
     [{ 'header': [1, 2, 3, false] }],
@@ -17,7 +18,9 @@ const quillModules = {
     ['link', 'image'],                                
     ['clean']                                         
   ],
-  imageResize: {}
+  imageResize: {
+    modules: [ 'Resize', 'DisplaySize', 'Toolbar' ] 
+  }
 };
 
 const iconOptions = [
@@ -198,6 +201,7 @@ export default function Dashboard() {
     }
 
     if (editingPostId) {
+      // --- UPDATE EXISTING ---
       const { error: updateError } = await supabase
         .from("posts")
         .update({
@@ -219,6 +223,7 @@ export default function Dashboard() {
         fetchPosts(); 
       }
     } else {
+      // --- INSERT NEW ---
       const { error: insertError } = await supabase
         .from("posts")
         .insert([
@@ -520,39 +525,59 @@ export default function Dashboard() {
               /* LIST MANAGER */
               <div className="grid grid-cols-1 gap-4 max-w-5xl mx-auto animate-in fade-in duration-300">
                 {/* Announcements List */}
-                {activeTab === "announcements" && announcementsList.map((post) => (
-                  <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
-                    <div className="flex items-center gap-4 text-left">
-                      {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-xs font-bold uppercase flex-shrink-0">No Img</div>}
-                      <div className="min-w-0">
-                        <span className="text-[9px] uppercase tracking-wider bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Announcement</span>
-                        <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
-                        <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
+                {activeTab === "announcements" && (
+                  announcementsList.length === 0 ? (
+                    <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
+                      <FontAwesomeIcon icon={["fas", "bullhorn"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
+                      <h3 className="font-bold text-slate-700 text-sm">No announcements published yet</h3>
+                      <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish an announcement.</p>
+                    </div>
+                  ) : (
+                    announcementsList.map((post) => (
+                      <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                        <div className="flex items-center gap-4 text-left">
+                          {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-xs font-bold uppercase flex-shrink-0">No Img</div>}
+                          <div className="min-w-0">
+                            <span className="text-[9px] uppercase tracking-wider bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Announcement</span>
+                            <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
+                            <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                          <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
+                          <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
-                      <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
-                      <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
-                    </div>
-                  </div>
-                ))}
+                    ))
+                  )
+                )}
 
                 {/* Stories List */}
-                {activeTab === "stories" && storiesList.map((post) => (
-                  <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
-                    <div className="flex items-center gap-4 text-left">
-                      {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>}
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
-                        <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
+                {activeTab === "stories" && (
+                  storiesList.length === 0 ? (
+                    <div className="text-center py-20 bg-white border border-slate-200 rounded-3xl">
+                      <FontAwesomeIcon icon={["fas", "book-open"]} className="text-slate-300 w-12 h-12 mb-3 animate-bounce" />
+                      <h3 className="font-bold text-slate-700 text-sm">No campus stories published yet</h3>
+                      <p className="text-xs text-slate-400 mt-1">Click the 'Create New' button in the header to publish a story.</p>
+                    </div>
+                  ) : (
+                    storiesList.map((post) => (
+                      <div key={post.id} className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-slate-300 transition-colors">
+                        <div className="flex items-center gap-4 text-left">
+                          {post.cover_image ? <img src={post.cover_image} alt="" className="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-sm font-bold uppercase flex-shrink-0">No Img</div>}
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-slate-800 text-sm mt-1 leading-snug">{post.title}</h4>
+                            <p className="text-[10px] text-slate-400 font-semibold mt-1">Published: {post.date}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
+                          <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
+                          <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-end gap-3 pt-3 sm:pt-0 border-t border-slate-100 sm:border-0">
-                      <button onClick={() => handleEditClick(post)} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:underline px-4 py-1.5 bg-emerald-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Edit</button>
-                      <button onClick={() => handleDeletePost(post.id)} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline px-4 py-1.5 bg-red-50 sm:bg-transparent rounded-lg sm:rounded-none cursor-pointer">Delete</button>
-                    </div>
-                  </div>
-                ))}
+                    ))
+                  )
+                )}
 
                 {/* Services List */}
                 {activeTab === "services" && (
