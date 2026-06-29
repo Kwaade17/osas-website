@@ -49,7 +49,8 @@ import {
   faBuilding,
   faEye,
   faBullseye,
-  faCalendarDays
+  faCalendarDays,
+  faCalendarCheck
 } from "@fortawesome/free-solid-svg-icons";
 import { faFacebook } from "@fortawesome/free-brands-svg-icons";
 
@@ -79,6 +80,7 @@ library.add(
   faEye,
   faBullseye,
   faCalendarDays,
+  faCalendarCheck,
   faFacebook
 );
 
