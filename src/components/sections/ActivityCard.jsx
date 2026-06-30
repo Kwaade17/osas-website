@@ -218,12 +218,12 @@ export default function ActivityCard() {
             {/* Standard Upcoming Timer (Under 24 hours) */}
             {!isOngoing && daysLeft === 0 && timeLeft && (
               <div className="text-center sm:text-right space-y-1">
-                <span className="block text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse font-bold">Time Left Remaining:</span>
+                <span className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest animate-pulse font-bold">Time Left Remaining:</span>
                 <div className="flex items-center gap-1.5 justify-center sm:justify-end text-slate-800">
-                  <span className="text-xl font-black bg-red-50 text-red-600 border border-red-100 px-2 py-1 rounded-lg">{padZero(timeLeft.hours)}</span>
-                  <span className="text-xl font-black text-red-400">:</span>
-                  <span className="text-xl font-black bg-red-50 text-red-600 border border-red-100 px-2 py-1 rounded-lg">{padZero(timeLeft.minutes)}</span>
-                  <span className="text-xl font-black text-red-400">:</span>
+                  <span className="text-xl font-black bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-1 rounded-lg">{padZero(timeLeft.hours)}</span>
+                  <span className="text-xl font-black text-emerald-400">:</span>
+                  <span className="text-xl font-black bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-1 rounded-lg">{padZero(timeLeft.minutes)}</span>
+                  <span className="text-xl font-black text-emerald-400">:</span>
                   <span className="text-xl font-black bg-emerald-600 text-white px-2 py-1 rounded-lg animate-pulse">{padZero(timeLeft.seconds)}</span>
                 </div>
               </div>
