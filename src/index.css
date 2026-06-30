@@ -31,6 +31,59 @@
   }
 }
 
+/* --- SCREEN VIEW (Hide the print area completely on your normal browser screen!) --- */
+#print-area {
+  display: none;
+}
+
+/* --- PIXEL-PERFECT LETTER SIZE PRINT CONTROLS --- */
+@media print {
+  /* Force the browser to configure Letter size in Portrait mode */
+  @page {
+    size: letter portrait !important;
+    margin: 0 !important; /* Removes browser-added headers, footers, and dates */
+  }
+  
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* 💡 FIXED: We removed #root from this list! 
+     We ONLY hide your active layout containers, buttons, and preview modal overlays. */
+  header, 
+  aside, 
+  main, 
+  footer, 
+  button, 
+  .no-print,
+  .fixed { /* Hides Supabase blurry modal background */
+    display: none !important;
+  }
+
+  /* Reset any layout backgrounds so they don't print on paper */
+  .min-h-screen,
+  body,
+  html {
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* 💡 FORCE your certificate to show up on paper! */
+  #print-area {
+    display: block !important; 
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 8.5in !important;
+    height: 11in !important;
+    box-sizing: border-box !important;
+    background: white !important;
+    z-index: 99999 !important;
+  }
+}
+
 /* Custom formatting rules for our dynamic reader page */
 .rich-text-viewer h1 {
   font-size: 1.75rem;

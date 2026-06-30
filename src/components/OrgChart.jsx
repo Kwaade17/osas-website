@@ -21,9 +21,9 @@ const osasOrgData = {
   image: docLarnie,
   children: [
     {
-      name: "Maylin M. Tongcua, PhD",
+      name: "T B A",
       title: "OIC - VP for Academic Affairs",
-      image: docMaylin,
+      image: null,
       children: [
         {
           name: "Laurence M. Lachica, MPA",

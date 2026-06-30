@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import AboutViewer from "./components/AboutViewer";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import DashboardTemp from "./pages/DashboardTemp";
 import PostReader from "./pages/PostReader";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -51,7 +52,8 @@ import {
   faBullseye,
   faCalendarDays,
   faCalendarCheck,
-  faCalendarDay
+  faCalendarDay,
+  faCertificate
 } from "@fortawesome/free-solid-svg-icons";
 import { faFacebook } from "@fortawesome/free-brands-svg-icons";
 
@@ -83,6 +85,7 @@ library.add(
   faCalendarDays,
   faCalendarCheck,
   faCalendarDay,
+  faCertificate,
   faFacebook
 );
 
@@ -97,7 +100,7 @@ export default function App() {
         path="/dashboard" 
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <DashboardTemp />
           </ProtectedRoute>
         } 
       />
