@@ -69,7 +69,10 @@ export default function Dashboard() {
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [eventLocation, setEventLocation] = useState("");
-  const [editingActivityId, setEditingActivityId] = useState(null); // 💡 Tracks if we are editing an event
+  const [editingActivityId, setEditingActivityId] = useState(null);
+  const [eventEndDate, setEventEndDate] = useState(""); 
+  const [eventOngoingUpdate, setEventOngoingUpdate] = useState("");
+  const [isOneDayEvent, setIsOneDayEvent] = useState(true);
   
   const navigate = useNavigate();
 
@@ -156,6 +159,9 @@ export default function Dashboard() {
     setEventDate(act.activity_date);
     setEventTime(act.start_time || "");
     setEventLocation(act.location || "");
+    setEventEndDate(act.end_date || "");
+    setEventOngoingUpdate(act.ongoing_update || "");
+    setIsOneDayEvent(!act.end_date || act.end_date === act.activity_date);
     setIsEditing(true); // Open form
   };
 
@@ -180,6 +186,9 @@ export default function Dashboard() {
     setEventDate("");
     setEventTime("");
     setEventLocation("");
+    setEventEndDate("");
+    setEventOngoingUpdate("");
+    setIsOneDayEvent(true);
   };
 
   const handleSavePost = async (e) => {
@@ -278,13 +287,13 @@ export default function Dashboard() {
       title: eventTitle,
       description: eventDescription,
       activity_date: eventDate,
-      // Default fallback changed to academic "TBA" if left completely blank!
       start_time: eventTime.trim() || "TBA",
-      location: eventLocation.trim() || "TBA"
+      location: eventLocation.trim() || "TBA",
+      end_date: isOneDayEvent ? eventDate : (eventEndDate || eventDate),
+      ongoing_update: eventOngoingUpdate.trim() || null
     };
 
     if (editingActivityId) {
-      // --- UPDATE EXISTING EVENT ---
       const { error } = await supabase
         .from("activities")
         .update(eventPayload)
@@ -298,7 +307,6 @@ export default function Dashboard() {
         fetchActivities();
       }
     } else {
-      // --- INSERT NEW EVENT ---
       const { error } = await supabase
         .from("activities")
         .insert([eventPayload]);
@@ -309,8 +317,10 @@ export default function Dashboard() {
         setEventTitle("");
         setEventDescription("");
         setEventDate("");
+        setEventEndDate("");
         setEventTime("");
         setEventLocation("");
+        setEventOngoingUpdate("");
         setIsEditing(false);
         fetchActivities(); 
       }
@@ -662,8 +672,10 @@ export default function Dashboard() {
             </div>
 
             {isEditing ? (
-              /* CALENDAR EVENT CREATION FORM */
-              <form onSubmit={handleSaveActivity} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5 max-w-4xl mx-auto">
+              /* CALENDAR EVENT CREATION FORM (FULLY OPTIMIZED) */
+              <form onSubmit={handleSaveActivity} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5 max-w-4xl mx-auto animate-in fade-in duration-300">
+                
+                {/* Row 1: Title & Start Date */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-400 uppercase">Event Title</label>
@@ -674,7 +686,7 @@ export default function Dashboard() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Event Date</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">Start Date</label>
                     <input 
                       type="date" required value={eventDate} onChange={e => setEventDate(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700 bg-white"
@@ -682,13 +694,41 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                {/* Row 2: One-Day Checkbox & Dynamic End Date Picker */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <div className="flex items-center space-x-3 pt-3">
+                    <input 
+                      type="checkbox" 
+                      id="isOneDay"
+                      checked={isOneDayEvent}
+                      onChange={(e) => setIsOneDayEvent(e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 focus:ring-2"
+                    />
+                    <label htmlFor="isOneDay" className="text-sm font-bold text-slate-600 select-none cursor-pointer">
+                      This is a one-day event
+                    </label>
+                  </div>
+
+                  {/* Dynamic End Date Datepicker (Hides if one-day is checked) */}
+                  {!isOneDayEvent && (
+                    <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Event End Date</label>
+                      <input 
+                        type="date" required={!isOneDayEvent} value={eventEndDate} onChange={e => setEventEndDate(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700 bg-white"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Row 3: Start Time & Location */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-400 uppercase">Start Time</label>
                     <input 
                       type="text" value={eventTime} onChange={e => setEventTime(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
-                      placeholder="E.g., 8:00 AM or Whole Day (Optional)"
+                      placeholder="E.g., 8:00 AM, 1:00 PM, or TBA"
                     />
                   </div>
                   <div className="space-y-1">
@@ -696,11 +736,23 @@ export default function Dashboard() {
                     <input 
                       type="text" value={eventLocation} onChange={e => setEventLocation(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
-                      placeholder="E.g., OSAS Office, Ground Floor"
+                      placeholder="E.g., OSAS Office, TETC Room #5, or TBA"
                     />
                   </div>
                 </div>
 
+                {/* Row 4: Ongoing Live Update Text Box */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Ongoing Status / Live Update (Optional)</label>
+                  <input 
+                    type="text" value={eventOngoingUpdate} onChange={e => setEventOngoingUpdate(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
+                    placeholder="E.g., Enrollment is currently active in the TETC Building! Please prepare documents."
+                  />
+                  <p className="text-[10px] text-slate-400 font-semibold leading-normal">This text will flash on the homepage countdown card *only* while the event is currently active in progress.</p>
+                </div>
+
+                {/* Row 5: Description */}
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-400 uppercase">Event Description / Guidelines</label>
                   <textarea 
@@ -711,13 +763,13 @@ export default function Dashboard() {
                   />
                 </div>
 
+                {/* Submit Action */}
                 <div className="pt-6 text-right">
-                  {/* 💡 THE FIXED EDIT/PUBLISH EVENT CTA BUTTON */}
                   <button 
                     type="submit" disabled={loading}
                     className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-8 py-3 rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
-                    {loading ? "Saving Event..." : editingActivityId ? "Update Event" : "Publish Event to Calendar"}
+                    {loading ? "Saving Event..." : "Publish Event to Calendar"}
                   </button>
                 </div>
               </form>
