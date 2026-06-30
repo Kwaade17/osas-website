@@ -93,6 +93,21 @@
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
 }
 
+/* --- ENHANCED HYPERLINK STYLING (For PostReader) --- */
+.rich-text-viewer a {
+  color: #059669 !important;          /* Elegant emerald-600 color */
+  font-weight: 700 !important;         /* Bold text so it stands out */
+  text-decoration: underline !important; /* Underline to indicate clickability */
+  text-underline-offset: 3px;          /* Clean spacing for the underline */
+  transition: color 0.2s ease-in-out !important;
+}
+
+/* Darkens smoothly to emerald-700 when hovered */
+.rich-text-viewer a:hover {
+  color: #047857 !important; 
+  text-decoration-color: #047857 !important;
+}
+
 /* Forces standard word-wrapping (stops words like "for" from breaking into "fo-r") */
 .rich-text-viewer {
   word-break: normal !important;      /* Never break a word in half */
