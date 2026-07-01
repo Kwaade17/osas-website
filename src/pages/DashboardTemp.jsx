@@ -92,6 +92,8 @@ export default function Dashboard() {
   const [gmOrNumber, setGMOrNumber] = useState("");
   const [gmOrDate, setGMOrDate] = useState("");
   const [gmYearLevel, setGMYearLevel] = useState("1st"); // 💡 ADD THIS: '1st', '2nd', '3rd', '4th'
+  const [syStart, setSyStart] = useState("");
+  const [syEnd, setSyEnd] = useState("");
 
   // Printing & Modal States
   const [selectedGMForPrint, setSelectedGMForPrint] = useState(null);
@@ -205,7 +207,15 @@ export default function Dashboard() {
     setIcon(post.icon || "fa-file"); 
     setDescription(post.description || ""); 
     setImageFile(null); 
-    setIsEditing(true);  
+    setIsEditing(true);
+    if (post.school_year && post.school_year.includes(" - ")) {
+      const [start, end] = post.school_year.split(" - ");
+      setSyStart(start);
+      setSyEnd(end);
+    } else {
+      setSyStart("");
+      setSyEnd("");
+    }
   };
 
   // Pre-populates the Calendar Form when clicking Edit on an event
@@ -257,6 +267,8 @@ export default function Dashboard() {
     setGMGradDate("");
     setGMOrNumber("");
     setGMOrDate("");
+    setSyStart("");
+    setSyEnd("");
   };
 
   const handleSavePost = async (e) => {
@@ -435,6 +447,37 @@ export default function Dashboard() {
       fetchGoodMoralRequests();
     }
     setLoading(false);
+  };
+
+  // 💡 AUTO-CALCULATOR: If start year is typed, automatically fill end year with +1
+  const handleSyStartChange = (val) => {
+    // Strip out non-numeric characters
+    const cleanVal = val.replace(/[^0-9]/g, "");
+    setSyStart(cleanVal);
+    
+    const yearNum = parseInt(cleanVal, 10);
+    if (!isNaN(yearNum) && cleanVal.length === 4) {
+      setSyEnd(String(yearNum + 1));
+      setGMSchoolYear(`${cleanVal} - ${yearNum + 1}`); // Syncs to the real database column!
+    } else {
+      setSyEnd("");
+      setGMSchoolYear("");
+    }
+  };
+
+  // 💡 AUTO-CALCULATOR: If end year is typed, automatically fill start year with -1
+  const handleSyEndChange = (val) => {
+    const cleanVal = val.replace(/[^0-9]/g, "");
+    setSyEnd(cleanVal);
+    
+    const yearNum = parseInt(cleanVal, 10);
+    if (!isNaN(yearNum) && cleanVal.length === 4) {
+      setSyStart(String(yearNum - 1));
+      setGMSchoolYear(`${yearNum - 1} - ${cleanVal}`); // Syncs to the real database column!
+    } else {
+      setSyStart("");
+      setGMSchoolYear("");
+    }
   };
 
   // UPDATE: Approve an online student request
@@ -1097,11 +1140,31 @@ export default function Dashboard() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">School Year</label>
-                    <input 
-                      type="text" required value={gmSchoolYear} onChange={e => setGMSchoolYear(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
-                      placeholder="E.g., 2025 - 2026"
-                    />
+                    <div className="flex items-center gap-2.5">
+                      <input 
+                        type="text" 
+                        required 
+                        maxLength={4}
+                        value={syStart} 
+                        onChange={e => handleSyStartChange(e.target.value)}
+                        className="w-24 px-3 py-2 rounded-xl border border-slate-200 text-center text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                        placeholder="Start"
+                      />
+                      <span className="text-slate-400 font-bold">-</span>
+                      <input 
+                        type="text" 
+                        required 
+                        maxLength={4}
+                        value={syEnd} 
+                        onChange={e => handleSyEndChange(e.target.value)}
+                        className="w-24 px-3 py-2 rounded-xl border border-slate-200 text-center text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                        placeholder="End"
+                      />
+                      {/* 💡 LIVE ERROR CHECKER: Displays a warning if they stop typing mid-way */}
+                      {((syStart.length > 0 && syStart.length < 4) || (syEnd.length > 0 && syEnd.length < 4)) && (
+                        <span className="text-[10px] text-red-500 font-extrabold animate-pulse ml-1.5 uppercase tracking-wide">Invalid Year</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
