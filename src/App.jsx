@@ -57,6 +57,7 @@ import {
   faCalendarCheck,
   faCalendarDay,
   faCircleCheck,
+  faCircleInfo,
   faCertificate
 } from "@fortawesome/free-solid-svg-icons";
 import { faFacebook } from "@fortawesome/free-brands-svg-icons";
@@ -91,6 +92,7 @@ library.add(
   faCalendarDay,
   faCertificate,
   faCircleCheck,
+  faCircleInfo,
   faFacebook
 );
 
