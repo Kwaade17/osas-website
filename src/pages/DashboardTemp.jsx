@@ -1128,6 +1128,7 @@ export default function Dashboard() {
                       <option value="B.S.Ed. - English">B.S.Ed. - English</option>
                       <option value="B.S.Ed. - Filipino">B.S.Ed. - Filipino</option>
                       <option value="B.S.Ed. - Math">B.S.Ed. - Math</option>
+                      <option value="B.S.Ed. - MAPEH">B.S.Ed. - MAPEH</option>
                       <option value="A.B. - ELS">A.B. - ELS</option>
                       <option value="M.A.Ed. - Educational Management">M.A.Ed. - Educational Management</option>
                       <option value="M.A.Ed. - English">M.A.Ed. - English</option>
