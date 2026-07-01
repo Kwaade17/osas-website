@@ -1066,11 +1066,33 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">Course / Major / Degree</label>
-                    <input 
-                      type="text" required value={gmCourse} onChange={e => setGMCourse(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700"
-                      placeholder="E.g., B.S.B.A. - FM or M.P.A."
-                    />
+                    <select 
+                      value={gmCourse} onChange={e => setGMCourse(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700 bg-white"
+                    >
+                      {/* 💡 FIXED: All value attributes now match their actual academic courses instead of "Graduate"! */}
+                      <option value="">Select Course / Degree</option>
+                      <option value="B.S.Agric. - Agronomy">B.S.Agric. - Agronomy</option>
+                      <option value="B.S.O.A.">B.S.O.A.</option>
+                      <option value="B.S.M.A.">B.S.M.A.</option>
+                      <option value="B.S.B.A. - FM">B.S.B.A. - FM</option>
+                      <option value="B.P.A.">B.P.A.</option>
+                      <option value="B.S. - Crim.">B.S. - Crim.</option>
+                      <option value="B.E.Ed.">B.E.Ed.</option>
+                      <option value="B.E.C.Ed.">B.E.C.Ed.</option>
+                      <option value="B.P.Ed.">B.P.Ed.</option>
+                      <option value="B.S.Ed. - English">B.S.Ed. - English</option>
+                      <option value="B.S.Ed. - Filipino">B.S.Ed. - Filipino</option>
+                      <option value="B.S.Ed. - Math">B.S.Ed. - Math</option>
+                      <option value="A.B. - ELS">A.B. - ELS</option>
+                      <option value="M.A.Ed. - Educational Management">M.A.Ed. - Educational Management</option>
+                      <option value="M.A.Ed. - English">M.A.Ed. - English</option>
+                      <option value="M.A.Ed. - Filipino">M.A.Ed. - Filipino</option>
+                      <option value="M.A.Ed. - Mathematics">M.A.Ed. - Mathematics</option>
+                      <option value="M.B.A.">M.B.A.</option>
+                      <option value="M.P.A.">M.P.A.</option>
+                      <option value="PhD">PhD - Educational Management</option>
+                    </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">School Year</label>

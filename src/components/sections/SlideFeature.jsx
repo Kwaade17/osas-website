@@ -70,14 +70,27 @@ export default function SlideFeature() {
 
   if (loading) {
     return (
-      <div className="w-full flex justify-center py-16">
-        <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <>
+        <div className="px-6">
+          <div className="w-full text-center sm:text-left">
+            <h2 className="text-3xl font-black text-slate-800 tracking-tight">
+              Services Offered
+            </h2>
+            <p className="text-sm text-slate-400 font-semibold mt-1">
+              Explore campus services, character clearances, and medical updates.
+            </p>
+          </div>
+
+          <div className="w-full flex justify-center py-16">
+            <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div id="services" className="w-full flex flex-col items-center space-y-6 overflow-hidden">
+    <div id="services" className="w-full flex flex-col items-center px-6 space-y-6 overflow-hidden">
       
       {/* Section Header (Now inside SlideFeature so it aligns with Announcements & Stories!) */}
       <div className="w-full text-center sm:text-left">
