@@ -575,8 +575,10 @@ export default function Dashboard() {
       const yrNum = req.year_level ? req.year_level.charAt(0) : "";
       const yrSuffix = req.year_level ? req.year_level.slice(1) : "";
 
-      const semNum = req.semester ? req.semester.charAt(0) : "";
-      const semSuffix = req.semester ? req.semester.slice(1) : "";
+      const sem = req.semester || "";
+      const isSummer = sem.toLowerCase() === "summer";
+      const semNum = isSummer ? sem : (sem ? sem.charAt(0) : "");
+      const semSuffix = isSummer ? "" : (sem ? sem.slice(1) : "");
 
       // 5. Map your exact Supabase variables to the Word placeholder tags!
       doc.render({
@@ -587,8 +589,7 @@ export default function Dashboard() {
         yr_suffix: yrSuffix,
         sem_num: semNum,
         sem_suffix: semSuffix,
-        semester: req.semester || "",
-        year_level: req.year_level || "", 
+        year_level: req.year_level || "",
         grad_date: req.grad_date || "",
         or_number: req.or_number,
         or_date: formattedOrDate,
