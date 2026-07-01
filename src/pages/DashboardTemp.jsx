@@ -587,7 +587,7 @@ export default function Dashboard() {
       });
 
       // 7. Trigger the automatic download!
-      const outputFilename = `GMC_${req.student_type.toUpperCase()}_${req.student_name.replace(/[^a-zA-Z0-9]/g, "_")}.docx`;
+      const outputFilename = `GMC_${mode.toUpperCase()}_${req.student_type.toUpperCase()}_${req.student_name.replace(/[^a-zA-Z0-9]/g, "_")}.docx`;
       saveAs(out, outputFilename);
 
       // 8. Update request status to "printed" on Supabase & Close Modal
