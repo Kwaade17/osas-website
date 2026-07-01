@@ -83,8 +83,8 @@ export default function GoodMoralRequest() {
             <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto text-emerald-700">
               <FontAwesomeIcon icon={["fas", "certificate"]} className="w-6 h-6" />
             </div>
-            <h2 className="text-xl font-black text-slate-800">Good Moral Clearance Request</h2>
-            <p className="text-xs text-slate-400 font-semibold leading-normal">Online Student Self-Service Form</p>
+            <h2 className="text-xl font-black text-slate-800">Good Moral Certificate Request</h2>
+            <p className="text-xs text-slate-400 font-semibold leading-normal">Online Self-Service Form</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
