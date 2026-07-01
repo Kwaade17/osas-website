@@ -172,8 +172,8 @@ export default function ActivityCard() {
                 {isOngoing && nextEvent.ongoing_update ? nextEvent.ongoing_update : nextEvent.title}
               </h3>
               
-              {/* If ongoing, we hide the static description since the title is now the full live update */}
-              {!isOngoing && <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">{nextEvent.description}</p>}
+              {/* If ongoing, we show the static description */}
+              {isOngoing && <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">{nextEvent.description}</p>}
               
               <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-wider">Duration: {formatDuration(nextEvent)}</p>
             </div>
