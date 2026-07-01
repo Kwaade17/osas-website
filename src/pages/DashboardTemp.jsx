@@ -100,11 +100,29 @@ export default function Dashboard() {
   
   const navigate = useNavigate();
 
+  // 💡 FIXED: Sets up active real-time listeners so your list updates instantly with NO page reloads!
   useEffect(() => {
     fetchPosts();
     fetchActivities();
     fetchGoodMoralRequests();
     fetchStorageFiles();
+
+    // Create a live websocket channel watching the good_moral_requests table
+    const gmRealtimeChannel = supabase
+      .channel("good_moral_realtime_sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "good_moral_requests" },
+        () => {
+          fetchGoodMoralRequests(); // Automatically refetches and redraws lists instantly!
+        }
+      )
+      .subscribe();
+
+    // Clean up channel on unmount
+    return () => {
+      supabase.removeChannel(gmRealtimeChannel);
+    };
   }, []);
 
   const fetchPosts = async () => {
