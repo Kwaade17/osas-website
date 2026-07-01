@@ -13,6 +13,9 @@ export default function GoodMoralRequest() {
   const [orNumber, setOrNumber] = useState("");
   const [orDate, setOrDate] = useState("");
   
+  // 💡 NEW STATE: Stores Year Level for Undergraduates
+  const [yearLevel, setYearLevel] = useState("1st"); 
+  
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -30,6 +33,7 @@ export default function GoodMoralRequest() {
           course_major: course,
           school_year: schoolYear,
           semester: studentType === "Undergraduate" ? semester : null,
+          year_level: studentType === "Undergraduate" ? yearLevel : null, // 💡 SAVES TO DATABASE COLUMNS
           grad_date: studentType === "Graduate" ? gradDate : null,
           or_number: orNumber,
           or_date: orDate,
@@ -95,7 +99,7 @@ export default function GoodMoralRequest() {
               />
             </div>
 
-            {/* Student Type Selection */}
+            {/* Student Type & Course */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Student Type</label>
@@ -117,7 +121,7 @@ export default function GoodMoralRequest() {
               </div>
             </div>
 
-            {/* Conditional Fields based on Student Type */}
+            {/* School Year & Conditional Field (Year Level / Graduation Date) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">School Year</label>
@@ -130,14 +134,15 @@ export default function GoodMoralRequest() {
 
               {studentType === "Undergraduate" ? (
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Semester</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Year Level</label>
                   <select 
-                    value={semester} onChange={e => setSemester(e.target.value)}
+                    value={yearLevel} onChange={e => setYearLevel(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700 bg-white"
                   >
                     <option value="1st">1st</option>
                     <option value="2nd">2nd</option>
-                    <option value="Summer">Summer</option>
+                    <option value="3rd">3rd</option>
+                    <option value="4th">4th</option>
                   </select>
                 </div>
               ) : (
@@ -151,6 +156,21 @@ export default function GoodMoralRequest() {
                 </div>
               )}
             </div>
+
+            {/* Semester (Only visible for Undergraduates) */}
+            {studentType === "Undergraduate" && (
+              <div className="space-y-1 animate-in fade-in duration-300">
+                <label className="text-xs font-bold text-slate-500 uppercase">Semester</label>
+                <select 
+                  value={semester} onChange={e => setSemester(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-semibold text-slate-700 bg-white"
+                >
+                  <option value="1st">1st</option>
+                  <option value="2nd">2nd</option>
+                  <option value="Summer">Summer</option>
+                </select>
+              </div>
+            )}
 
             {/* Official Receipt (O.R.) Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
@@ -176,7 +196,7 @@ export default function GoodMoralRequest() {
               disabled={loading}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-xs transition-colors duration-200 cursor-pointer active:scale-98 text-sm disabled:opacity-50"
             >
-              {loading ? "Submitting Request..." : "Submit Clearance Request"}
+              {loading ? "Submitting Request..." : "Submit Good Moral Request"}
             </button>
           </form>
         </div>

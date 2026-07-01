@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { supabase } from "../supabaseClient";
 
@@ -7,6 +7,7 @@ export default function PostReader() {
   const { id } = useParams();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   // Fetch the specific row dynamically on mount
   useEffect(() => {
@@ -25,6 +26,35 @@ export default function PostReader() {
 
     fetchPost();
   }, [id]);
+
+  useEffect(() => {
+    if (!post) return;
+
+    const handleHtmlLinkClick = (e) => {
+      // Find the closest anchor (link) tag that was clicked
+      const targetLink = e.target.closest("a");
+      if (targetLink) {
+        const href = targetLink.getAttribute("href");
+        // If it's an internal relative link (starts with /), intercept and handle natively!
+        if (href && href.startsWith("/")) {
+          e.preventDefault(); // Stop standard browser page refresh
+          navigate(href); // Use React Router's smooth client-side transition
+        }
+      }
+    };
+
+    const viewerEl = document.querySelector(".rich-text-viewer");
+    if (viewerEl) {
+      viewerEl.addEventListener("click", handleHtmlLinkClick);
+    }
+
+    // Clean up event listener on unmount to prevent memory leaks
+    return () => {
+      if (viewerEl) {
+        viewerEl.removeEventListener("click", handleHtmlLinkClick);
+      }
+    };
+  }, [post, navigate]);
 
   if (loading) {
     return (

@@ -8,6 +8,9 @@ import DashboardTemp from "./pages/DashboardTemp";
 import PostReader from "./pages/PostReader";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+// IMPORT THE DYNAMIC PUBLIC REQUEST FORM
+import GoodMoralRequest from "./pages/GoodMoralRequest";
+
 // IMPORT YOUR HEADER & FOOTER
 import TopBar from "./components/TopBar"; 
 import Footer from "./components/Footer";           
@@ -95,6 +98,7 @@ export default function App() {
       <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
       <Route path="/about-osas" element={<PublicLayout><AboutViewer /></PublicLayout>} />
       <Route path="/posts/:id" element={<PublicLayout><PostReader /></PublicLayout>} />
+      <Route path="/clearance/good-moral-request" element={<GoodMoralRequest />} />
       <Route path="/login" element={<Login />} />
       <Route 
         path="/dashboard" 
